@@ -182,7 +182,8 @@ class CiscoInterface(base_config):
         self.router = router
 
         self.router.toConfig()
-        # self.router.writeWithResponce(f"default interface {self.name}",'(config)#')
+        if not self.is_subinterface and not self.is_loopback:
+            self.router.writeWithResponce(f"default interface {self.name}",'(config)#')
         self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
         # self.__apply__()
         info(f" {self} created")
@@ -232,13 +233,13 @@ class CiscoInterface(base_config):
 def cisco_get_all_interfaces (router):
     router.toExec()
     router.writeWithResponce('show ip interface brief')
-    vrf_list = []
+    int_list = []
 
     #remove show header
     # delimiter_pos = re.search(r'Interface\s+IP-Address.+(Protocol$)', router.resp, re.MULTILINE)
     delimiter_pos = re.search(r'Interface\s+IP-Address.+(Protocol\r\n)', router.resp, re.MULTILINE)
     if not delimiter_pos:
-        return vrf_list
+        return int_list
     body = router.resp[delimiter_pos.span()[1]:]
     # remove prompt after the table
     table_end_pos = re.search(f'^{router.name}#', body, re.MULTILINE)
@@ -248,5 +249,5 @@ def cisco_get_all_interfaces (router):
     for line in body.split('\r\n'):
         match = re.findall(r'(\w+)', line)
         if match and len(match):
-            vrf_list.append(match[0].lower())
-    return vrf_list
+            int_list.append(match[0].lower())
+    return int_list
