@@ -32,6 +32,8 @@ def _cisco_bgp_get_af_command (name):
         return 'address-family ipv4 unicast'
     elif name == BGP_AFAMILY_IPV6_UNICAST:
         return 'address-family ipv6 unicast'
+    elif  name == BGP_AFAMILY_IPV4_VPN:
+        return 'address-family vpnv4'
     else:
         raise Exception("cisco bgp af is not implemented ")
 
@@ -40,13 +42,14 @@ def str_normalize (str):
     return str.lower()
 
 class CiscoBgpNeighborAFamily(base_config):
-    def __init__ (self, af_type, **kwargs):
+    def __init__ (self, af_type, *args):
 
         base_config.__init__(self, None, af_type)
 
+        self.vrf = None
         self.neighbor_list = set()
         self.feature_set = set()
-        for feature in kwargs.keys():
+        for feature in args:
             self._feature_set_modify(feature)
 
     def _feature_set_modify (self, str):
@@ -82,7 +85,7 @@ class CiscoBgpNeighborAFamily(base_config):
         self.upref = upref
         self.router = upref.router   
      
-        self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
+        self.router.writeWithResponce(self._get_af_headline(), '(config-router-af)#')
         
         if  upref not in self.neighbor_list:
             self.router.writeWithResponce(f'neighbor {upref.name} activate' , '(config-router-af)#')
@@ -99,6 +102,7 @@ class CiscoBgpNeighborAFamily(base_config):
         self.router = None
         self.neighbor_list = set()
         self.feature_set = set()
+        self.vrf = None
 
     def add_feature (self, feature_str): 
         self._feature_set_modify(feature_str)
@@ -109,7 +113,7 @@ class CiscoBgpNeighborAFamily(base_config):
             prefix = 'no ' if is_no else ''
             self.router.toConfig()
             self.router.writeWithResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
-            self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
+            self.router.writeWithResponce(self._get_af_headline(), '(config-router-af)#')
             self.router.writeWithResponce(f'{prefix}neighbor {self.upref.name} {feature_str}', '(config-router-af)#')
             self.router.writeWithResponce('exit-address-family' , '(config-router)#')
 
@@ -118,7 +122,21 @@ class CiscoBgpNeighborAFamily(base_config):
             return None
         return self.upref.upref.upref.name
 
+    def _set_vrf (self, vrf):
+        self.vrf = vrf
+
+    def _get_af_headline (self):
+        headline = _cisco_bgp_get_af_command(self.name)
+        if self.vrf and not self.vrf.is_default:
+            headline += f" vrf {self.vrf.name}"
+        return headline
+
 class CiscoBgpNeighbor(base_config):
+    '''
+    BGP neighbor contains:
+    - features
+    - neighbor's address families
+    '''
     def __init__ (self, name, as_number, **kwargs):
 
         base_config.__init__(self, None, name)
@@ -137,6 +155,7 @@ class CiscoBgpNeighbor(base_config):
                     Exception("CiscoBgp: unexpected interface name")
 
         self.af_list = []
+        self.vrf = None
 
     def __repr__(self):
         ret = f"CiscoBgpNeighbor {self.name} AS {self.as_number}"
@@ -154,17 +173,24 @@ class CiscoBgpNeighbor(base_config):
                 self.router.toConfig()
             self.af_list.append(af)
 
+    def __write_neighbor_params__ (self):
+        self.router.writeWithResponce(f"neighbor {self.name} remote-as {self.as_number}", '#')
+        if hasattr(self, "local_address") and self.local_address:
+            self.router.writeWithResponce(f"neighbor {self.name} update-source {self.local_address}", '#')        
+
     def __apply__ (self, upref):
         self.upref = upref
         self.router = upref.router
 
-        self.router.writeWithResponce(f"neighbor {self.name} remote-as {self.as_number}", '#')
-
-        if hasattr(self, "local_address") and self.local_address:
-            self.router.writeWithResponce(f"neighbor {self.name} update-source {self.local_address}", '#')
-
-        for af in self.af_list:
-            af.__apply__(self)
+        if self.vrf:  # neighbor in vrf
+            for af in self.af_list:
+                self.router.writeWithResponce(f'{af._get_af_headline()}','#')
+                self.__write_neighbor_params__()
+                af.__apply__(self)
+        else:
+            self.__write_neighbor_params__()
+            for af in self.af_list:
+                af.__apply__(self)
 
     def __detach__ (self):
 
@@ -179,12 +205,22 @@ class CiscoBgpNeighbor(base_config):
         if not self.router:
             return None
         return self.upref.upref.name
+    
+    def _set_vrf (self, vrf):
+        self.vrf = vrf
+        for af in self.af_list:
+            af._set_vrf(vrf)
 
 class CiscoBgpAFamily(base_config):
-    def __init__ (self, af_type, **kwargs):
+    '''
+    BGP Address family. It contains
+    - AF features
+    - Neighbors
+    '''
+    def __init__ (self, af_type, *args):
         base_config.__init__(self, None, af_type)
         self.feature_set = set()
-        for feature in kwargs.keys():
+        for feature in args:
             self._feature_set_modify(feature)
         
     def __repr__(self):
@@ -218,19 +254,11 @@ class CiscoBgpAFamily(base_config):
         self.upref = upref  # Parent BgpVrf
         self.router = upref.router
 
-        self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name), "#")
-        # set import/export targets
-        if self.upref.upvrf and self.upref.upvrf.router:
-            # Get Vrf from BgpVrf, then iterate on vrf af and get import/export targets
-            for af in self.upref.upvrf.af_list:
-                if self.name == af.name:
-                    for itarget in af.import_list:
-                        self.router.writeWithResponce(f'import-rt {itarget}')
-                    for etarget in af.export_list:
-                        self.router.writeWithResponce(f'export-rt {etarget}')
+        self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name), "(config-router-af)#")
         # set features
         for feature in self.feature_set:
-            self.router.writeWithResponce(feature, "#")
+            self.router.writeWithResponce(feature, "(config-router-af)#")
+            # print(feature)
 
         self.router.writeWithResponce("exit-address-family", "(config-router)#")
 
@@ -263,7 +291,7 @@ class CiscoBgpVrf(base_config):
             name = vrf.name
             self.upvrf = vrf
         elif isinstance(vrf,str):
-            name = vrf
+            name = vrf.strip()
             self.upvrf = None
         else:
             Exception("CiscoBgp: unexpected vrf name")
@@ -271,6 +299,8 @@ class CiscoBgpVrf(base_config):
 
         self.af_list = []
         self.neighbor_list = []
+
+        self.is_default = self.name == 'default'
 
     def __repr__(self):
         ret = f"CiscoBgpVrf {self.name}"
@@ -287,8 +317,6 @@ class CiscoBgpVrf(base_config):
             neighbor.__apply__(self)  
         for af in self.af_list:
             af.__apply__(self)
-             
-        # self.router.writeWithResponce("exit")
 
     def __detach__ (self):
 
@@ -317,7 +345,9 @@ class CiscoBgpVrf(base_config):
                 neighbor.__apply__(self)
                 self.router.toConfig()
 
-            self.neighbor_list.append(neighbor)    
+            self.neighbor_list.append(neighbor)
+            if not self.is_default:
+                neighbor._set_vrf(self)
 
 class CiscoBgp(base_config):
     def __init__ (self, name, **kwargs):
@@ -328,13 +358,17 @@ class CiscoBgp(base_config):
         ret = f"CiscoBgp {self.name}"
         return ret
 
-    def add_vrf (self, bgp_vrf):
+    def add_vrf (self, *vrfs):
+
         if (self.router):
             self.router.toConfig()
             self.router.writeWithResponce(f"router bgp {self.name}", '(config-router)#')
-            bgp_vrf.__apply__(self)
+            for vrf in vrfs:
+                vrf.__apply__(self)
             self.router.toConfig()
-        self.vrf_list.append(bgp_vrf)
+
+        for vrf in vrfs:
+            self.vrf_list.append(vrf)
     
     def create (self, router):
         self.router = router
