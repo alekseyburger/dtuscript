@@ -7,7 +7,7 @@ from base_config import base_config
 from dtu_definition import VRF_AFAMILY_IPV4_UNICAST, VRF_AFAMILY_IPV6_UNICAST
 from router_cisco import RouterCisco
 from router_cisco import CONFIG_MODE
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 
 logger = logging.getLogger("dtulibLog")
 
@@ -130,7 +130,7 @@ class CiscoVrf(base_config):
             else:
                 for af in self.af_list:
                     af.__detach__()
-        except exception_dev:
+        except ExceptionDevice:
             pass
         self.router = None
         info(f"{self} deleted")

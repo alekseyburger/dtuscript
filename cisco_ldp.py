@@ -5,7 +5,7 @@ import logging
 from base_config import base_config
 from router_cisco import RouterCisco
 from cisco_interface import  CiscoInterface
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 
 logger = logging.getLogger('dtulibLog')
 

@@ -5,7 +5,7 @@ from router_cisco import RouterCisco
 import logging
 import re
 from base_config import base_config
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 import utils_ipv4
 from cisco_vrf import CiscoVrf
 

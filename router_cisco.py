@@ -6,7 +6,7 @@ import time
 import re
 import logging
 from curses import ascii
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 
 logger = logging.getLogger("dtulibLog")
 def trace(format):
@@ -207,7 +207,7 @@ class RouterCisco:
             device_log(f"{self.resp}")
             invalid_input = re.findall(r'^\%',self.resp,re.MULTILINE)
             if len(invalid_input) and not self.ignore_exception_syntax:
-                raise exception_dev("syntax error", self.resp)
+                raise ExceptionDevice("syntax error", self.resp)
 
 
 

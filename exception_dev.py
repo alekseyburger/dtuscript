@@ -1,7 +1,7 @@
 # GNU GENERAL PUBLIC LICENSE
 # Autor: Aleksey Burger
 
-class exception_dev(Exception):
+class ExceptionDevice(Exception):
     def __init__(self, message, snap):
         self.message = message
         self.snap = snap

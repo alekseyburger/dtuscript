@@ -6,7 +6,7 @@ from base_config import base_config
 from router_cisco import RouterCisco
 from cisco_interface import  CiscoInterface
 from dtu_definition import OSPF_INTF_NTYPE_P2P,OSPF_INTF_NTYPE_P2M, OSPF_INTF_NTYPE_BCAST, OSPF_INTF_NTYPE_NBCAST, OSPF_INTF_NTYPE_P2M_NBCAST
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 
 logger = logging.getLogger("dtulibLog")
 

@@ -6,7 +6,7 @@ from base_config import base_config
 from dtu_definition import BGP_AFAMILY_IPV4_UNICAST,BGP_AFAMILY_IPV6_UNICAST,BGP_AFAMILY_L2_EVPN, BGP_AFAMILY_IPV4_VPN
 from cisco_interface import  CiscoInterface
 from cisco_vrf import  CiscoVrf
-from exception_dev import exception_dev
+from exception_dev import ExceptionDevice
 import logging
 
 logger = logging.getLogger("dtulibLog")
@@ -403,7 +403,7 @@ def cisco_get_all_bgp (router):
     router.toExec()
     try:
         router.writeWithResponce('show ip bgp summary')
-    except exception_dev:
+    except ExceptionDevice:
         # bgp is not active
         return bgp_list
     
