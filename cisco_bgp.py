@@ -188,23 +188,34 @@ class CiscoBgpAFamily(base_config):
         pass
 
     def __apply__ (self, upref):
-        self.upref = upref
+        self.upref = upref  # Parent BgpVrf
         self.router = upref.router
 
         self.router.writeWithResponce(f"{self.name}")
+        # set import/export targets
         if self.upref.upvrf and self.upref.upvrf.router:
+            # Get Vrf from BgpVrf, then iterate on vrf af and get import/export targets
             for af in self.upref.upvrf.af_list:
                 if self.name == af.name:
                     for itarget in af.import_list:
                         self.router.writeWithResponce(f'import-rt {itarget}')
                     for etarget in af.export_list:
                         self.router.writeWithResponce(f'export-rt {etarget}')
+        # set features
+        if hasattr(self, "feature_list"):
+            for feature in self.feature_list:
+                self.router.writeWithResponce(feature)
 
         self.router.writeWithResponce("exit")
 
     def __detach__ (self):
         self.upref = None
         self.router = None
+
+    def add_feature (self, feature_string):
+        if not hasattr(self, "feature_list"):
+            self.feature_list = []
+        self.feature_list.append(feature_string)
 
 class CiscoBgpVrf(base_config):
     def __init__ (self, vrf, **kwargs):
