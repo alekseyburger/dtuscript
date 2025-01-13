@@ -27,23 +27,47 @@ device_logger = logging.getLogger("deviceLog")
 def device_log(format):
     device_logger.info(f'{format}')
 
+def _cisco_bgp_get_af_command (name):
+    if name == BGP_AFAMILY_IPV4_UNICAST:
+        return 'address-family ipv4 unicast'
+    elif name == BGP_AFAMILY_IPV6_UNICAST:
+        return 'address-family ipv6 unicast'
+    else:
+        raise Exception("cisco bgp af is not implemented ")
+
+def str_normalize (str):
+    str = ' '.join(str.split())
+    return str.lower()
 
 class CiscoBgpNeighborAFamily(base_config):
     def __init__ (self, af_type, **kwargs):
 
         base_config.__init__(self, None, af_type)
 
-        for feature in kwargs.keys():
-            # if feature == "reflector_client":
-            #     self.reflector_client = kwargs[feature]
-            # if feature == "send_community":
-            #     self.send_community = kwargs[feature]
-            # if feature == "next_hop_self":
-            #     self.next_hop_self = kwargs[feature]
-            error(f"Unexpected feature {feature}")
-        
         self.neighbor_list = set()
-        self.features = set()
+        self.feature_set = set()
+        for feature in kwargs.keys():
+            self._feature_set_modify(feature)
+
+    def _feature_set_modify (self, str):
+        ''' 
+        parse string with purpose to ​recognize 'no' command
+        modify self.feature_set with feture
+        returns two results:
+            True if it is 'no' command, otherwise False
+            Normalized command string
+        '''
+        match = re.findall(r'(no\s+)?(.+)',str)
+        if not match or len(match[0]) != 2:
+            # parsing error
+            return None, None
+        is_no = len(match[0][0]) != 0
+        nstr = str_normalize(match[0][1])
+        if is_no:
+            self.feature_set.remove(nstr)
+        else:
+            self.feature_set.add(nstr)
+        return is_no, nstr
 
     def __repr__(self):
         ret = f"CiscoBgpNeighborAFamily {self.name}"
@@ -58,31 +82,15 @@ class CiscoBgpNeighborAFamily(base_config):
         self.upref = upref
         self.router = upref.router   
      
-        self.router.writeWithResponce(f'{self.get_af_command()}' , '(config-router-af)#')
-
-        # if hasattr(self,"next_hop_self") and self.next_hop_self:
-        #     self.router.writeWithResponce(f"next-hop-self  enable")
-        # else:
-        #     self.router.writeWithResponce("no next-hop-self")
-
-        # if hasattr(self,"send_community") and self.send_community:
-        #     self.router.writeWithResponce(f"send-community {self.send_community}")
-        # else:
-        #     self.router.writeWithResponce("no send-community")
-
-        # if hasattr(self,"reflector_client") and self.reflector_client:
-        #     self.router.writeWithResponce(f"route-reflector-client  enable")
-        # else:
-        #     self.router.writeWithResponce("no route-reflector-client")
-        
+        self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
         
         if  upref not in self.neighbor_list:
             self.router.writeWithResponce(f'neighbor {upref.name} activate' , '(config-router-af)#')
             self.neighbor_list.add(upref)
         
         if is_first_call:
-            for feature in self.features:
-                self.router.writeWithResponce(feature, '#')
+            for feature in self.feature_set:
+                self.router.writeWithResponce(f'neighbor {upref.name} {feature}', '(config-router-af)#')
 
         self.router.writeWithResponce('exit-address-family' , '(config-router)#')
 
@@ -90,29 +98,25 @@ class CiscoBgpNeighborAFamily(base_config):
         self.upref = None
         self.router = None
         self.neighbor_list = set()
-        self.features = set()
+        self.feature_set = set()
 
-    def add_raw_feature (self, feature_str):
-        if self.router:
+    def add_feature (self, feature_str): 
+        self._feature_set_modify(feature_str)
+
+    def modify_feature (self, str):
+        is_no, feature_str = self._feature_set_modify(str)
+        if feature_str and self.router:
+            prefix = 'no ' if is_no else ''
             self.router.toConfig()
             self.router.writeWithResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
-            self.router.writeWithResponce(f'{self.get_af_command()}' , '#')
-            self.router.writeWithResponce(feature_str.lower(), '#')
-            self.router.writeWithResponce('exit-address-family' , '#')
-        self.features.add(feature_str.lower())
+            self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
+            self.router.writeWithResponce(f'{prefix}neighbor {self.upref.name} {feature_str}', '(config-router-af)#')
+            self.router.writeWithResponce('exit-address-family' , '(config-router)#')
 
     def get_router_name (self):
         if not self.router:
             return None
         return self.upref.upref.upref.name
-
-    def get_af_command (self):
-        if self.name == BGP_AFAMILY_IPV4_UNICAST:
-            return 'address-family ipv4 unicast'
-        elif self.name == BGP_AFAMILY_IPV6_UNICAST:
-            return 'address-family ipv6 unicast'
-        else:
-            raise Exception("cisco bgp af is not implemented ")
 
 class CiscoBgpNeighbor(base_config):
     def __init__ (self, name, as_number, **kwargs):
@@ -179,10 +183,33 @@ class CiscoBgpNeighbor(base_config):
 class CiscoBgpAFamily(base_config):
     def __init__ (self, af_type, **kwargs):
         base_config.__init__(self, None, af_type)
-
+        self.feature_set = set()
+        for feature in kwargs.keys():
+            self._feature_set_modify(feature)
+        
     def __repr__(self):
         ret = f"CiscoBgpAFamily {self.name}"
         return ret
+
+    def _feature_set_modify (self, str):
+        ''' 
+        parse string with purpose to ​recognize 'no' command
+        modify self.feature_set with feture
+        returns two results:
+            True if it is 'no' command, otherwise False
+            Normalized command string
+        '''
+        match = re.findall(r'(no\s+)?(.+)',str)
+        if not match or len(match[0]) != 2:
+            # parsing error
+            return None, None
+        is_no = len(match[0][0]) != 0
+        nstr = str_normalize(match[0][1])
+        if is_no:
+            self.feature_set.remove(nstr)
+        else:
+            self.feature_set.add(nstr)
+        return is_no, nstr
 
     def create (self):
         pass
@@ -191,7 +218,7 @@ class CiscoBgpAFamily(base_config):
         self.upref = upref  # Parent BgpVrf
         self.router = upref.router
 
-        self.router.writeWithResponce(f"{self.name}")
+        self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name), "#")
         # set import/export targets
         if self.upref.upvrf and self.upref.upvrf.router:
             # Get Vrf from BgpVrf, then iterate on vrf af and get import/export targets
@@ -202,20 +229,32 @@ class CiscoBgpAFamily(base_config):
                     for etarget in af.export_list:
                         self.router.writeWithResponce(f'export-rt {etarget}')
         # set features
-        if hasattr(self, "feature_list"):
-            for feature in self.feature_list:
-                self.router.writeWithResponce(feature)
+        for feature in self.feature_set:
+            self.router.writeWithResponce(feature, "#")
 
-        self.router.writeWithResponce("exit")
+        self.router.writeWithResponce("exit-address-family", "(config-router)#")
 
     def __detach__ (self):
         self.upref = None
         self.router = None
 
-    def add_feature (self, feature_string):
-        if not hasattr(self, "feature_list"):
-            self.feature_list = []
-        self.feature_list.append(feature_string)
+    def add_feature (self, feature_str):
+        self._feature_set_modify(feature_str)
+
+    def modify_feature (self, str):
+        is_no, feature_str = self._feature_set_modify(str)
+        if feature_str and self.router:
+            prefix = 'no ' if is_no else ''
+            self.router.toConfig()
+            self.router.writeWithResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+            self.router.writeWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
+            self.router.writeWithResponce(f'{prefix} {feature_str}', '(config-router-af)#')
+            self.router.writeWithResponce('exit-address-family' , '(config-router)#')
+
+    def get_router_name (self):
+        if not self.router:
+            return None
+        return self.upref.upref.name
 
 class CiscoBgpVrf(base_config):
     def __init__ (self, vrf, **kwargs):
