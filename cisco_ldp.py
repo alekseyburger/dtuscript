@@ -2,7 +2,7 @@
 # Autor: Aleksey Burger
 
 import logging
-from base_config import base_config
+from base_config import BaseConfig
 from router_cisco import RouterCisco
 from cisco_interface import  CiscoInterface
 from exception_dev import ExceptionDevice
@@ -26,7 +26,7 @@ def get_interface_name (intf_or_name):
         return intf_or_name.name
     return intf_or_name
 
-class CiscoLdpInterface(base_config):
+class CiscoLdpInterface(BaseConfig):
     def __init__ (self, interface, **kwargs):
         if isinstance(interface, CiscoInterface):
             name = interface.name
@@ -35,7 +35,7 @@ class CiscoLdpInterface(base_config):
         else:
             Exception('CiscoLdp: unexpected interface name')
 
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         for feature in kwargs.keys():
             raise Exception(f'CiscoLdpInterface: {feature} is not implemented')
@@ -55,9 +55,9 @@ class CiscoLdpInterface(base_config):
         self.upref = None
         self.router = None
 
-class CiscoLdp(base_config):
+class CiscoLdp(BaseConfig):
     def __init__ (self, **kwargs):
-        base_config.__init__(self, None, 'default')
+        BaseConfig.__init__(self, None, 'default')
         self.intf_list = []
         for feature in kwargs.keys():
             if feature == 'local_address':

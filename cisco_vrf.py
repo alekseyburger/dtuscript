@@ -3,7 +3,7 @@
 
 import logging
 import re
-from base_config import base_config
+from base_config import BaseConfig
 from dtu_definition import VRF_AFAMILY_IPV4_UNICAST, VRF_AFAMILY_IPV6_UNICAST
 from router_cisco import RouterCisco
 from router_cisco import CONFIG_MODE
@@ -24,9 +24,9 @@ def warn(format):
     logger.warning(f'\n\x1b[1;94mCisco: {format}\x1b[0m')
 
 
-class CiscoVrfAFamily(base_config):
+class CiscoVrfAFamily(BaseConfig):
     def __init__ (self, af_type, **kwargs):
-        base_config.__init__(self, None, af_type)
+        BaseConfig.__init__(self, None, af_type)
         self.import_list = []
         self.export_list = []
 
@@ -82,9 +82,9 @@ class CiscoVrfAFamily(base_config):
                 self.router.toConfig()
             self.export_list.append(target)
 
-class CiscoVrf(base_config):
+class CiscoVrf(BaseConfig):
     def __init__ (self, name, rd, **kwargs):
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         self.rd = rd
         for feature in kwargs.keys():

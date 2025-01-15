@@ -2,7 +2,7 @@
 # Autor: Aleksey Burger
 
 import re
-from base_config import base_config
+from base_config import BaseConfig
 from dtu_definition import BGP_AFAMILY_IPV4_UNICAST,BGP_AFAMILY_IPV6_UNICAST,BGP_AFAMILY_L2_EVPN, BGP_AFAMILY_IPV4_VPN
 from cisco_interface import  CiscoInterface
 from cisco_vrf import  CiscoVrf
@@ -41,10 +41,10 @@ def str_normalize (str):
     str = ' '.join(str.split())
     return str.lower()
 
-class CiscoBgpNeighborAFamily(base_config):
+class CiscoBgpNeighborAFamily(BaseConfig):
     def __init__ (self, af_type, *args):
 
-        base_config.__init__(self, None, af_type)
+        BaseConfig.__init__(self, None, af_type)
 
         self.vrf = None
         self.neighbor_list = set()
@@ -131,7 +131,7 @@ class CiscoBgpNeighborAFamily(base_config):
             headline += f" vrf {self.vrf.name}"
         return headline
 
-class CiscoBgpNeighbor(base_config):
+class CiscoBgpNeighbor(BaseConfig):
     '''
     BGP neighbor contains:
     - features
@@ -139,7 +139,7 @@ class CiscoBgpNeighbor(base_config):
     '''
     def __init__ (self, name, as_number, **kwargs):
 
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         self.as_number = str(as_number)
 
@@ -211,14 +211,14 @@ class CiscoBgpNeighbor(base_config):
         for af in self.af_list:
             af._set_vrf(vrf)
 
-class CiscoBgpAFamily(base_config):
+class CiscoBgpAFamily(BaseConfig):
     '''
     BGP Address family. It contains
     - AF features
     - Neighbors
     '''
     def __init__ (self, af_type, *args):
-        base_config.__init__(self, None, af_type)
+        BaseConfig.__init__(self, None, af_type)
         self.feature_set = set()
         for feature in args:
             self._feature_set_modify(feature)
@@ -284,7 +284,7 @@ class CiscoBgpAFamily(base_config):
             return None
         return self.upref.upref.name
 
-class CiscoBgpVrf(base_config):
+class CiscoBgpVrf(BaseConfig):
     def __init__ (self, vrf, **kwargs):
 
         if isinstance(vrf, CiscoVrf):
@@ -295,7 +295,7 @@ class CiscoBgpVrf(base_config):
             self.upvrf = None
         else:
             Exception("CiscoBgp: unexpected vrf name")
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         self.af_list = []
         self.neighbor_list = []
@@ -349,9 +349,9 @@ class CiscoBgpVrf(base_config):
             if not self.is_default:
                 neighbor._set_vrf(self)
 
-class CiscoBgp(base_config):
+class CiscoBgp(BaseConfig):
     def __init__ (self, name, **kwargs):
-        base_config.__init__(self, None, str(name))
+        BaseConfig.__init__(self, None, str(name))
         self.vrf_list = []
 
     def __repr__(self):

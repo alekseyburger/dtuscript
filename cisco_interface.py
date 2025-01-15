@@ -4,7 +4,7 @@
 from router_cisco import RouterCisco
 import logging
 import re
-from base_config import base_config
+from base_config import BaseConfig
 from exception_dev import ExceptionDevice
 import utils_ipv4
 from cisco_vrf import CiscoVrf
@@ -26,9 +26,9 @@ def get_vrf_name (vrf_or_name):
     return vrf_or_name
 
 PROMPT_CFG = '(config-if)#'
-class CiscoInterface(base_config):
+class CiscoInterface(BaseConfig):
     def __init__ (self, name):
-        base_config.__init__(self, None, name.lower())
+        BaseConfig.__init__(self, None, name.lower())
 
         self.is_subinterface = (1 == len(re.findall(r"([a-zA-Z\-]+)([0-9\/]+)\.(\d+)",self.name)))
         self.is_loopback = (1 == len(re.findall(r"(loopback)\d+",self.name)))

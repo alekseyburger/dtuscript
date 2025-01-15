@@ -2,7 +2,7 @@
 # Autor: Aleksey Burger
 
 import logging
-from base_config import base_config
+from base_config import BaseConfig
 from router_cisco import RouterCisco
 from cisco_interface import  CiscoInterface
 from dtu_definition import OSPF_INTF_NTYPE_P2P,OSPF_INTF_NTYPE_P2M, OSPF_INTF_NTYPE_BCAST, OSPF_INTF_NTYPE_NBCAST, OSPF_INTF_NTYPE_P2M_NBCAST
@@ -30,7 +30,7 @@ def __network_type_command__ (ntype):
     else:
         raise Exception(f'CiscoOspf: unexpectd network type {ntype}')
 
-class CiscoOspfInterface(base_config):
+class CiscoOspfInterface(BaseConfig):
     def __init__ (self, interface, **kwargs):
         if isinstance(interface, CiscoInterface):
             name = interface.name
@@ -39,7 +39,7 @@ class CiscoOspfInterface(base_config):
         else:
             Exception("CiscoOspf: unexpected interface name")
 
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         self.network_type = OSPF_INTF_NTYPE_P2P
         for feature in kwargs.keys():
@@ -87,9 +87,9 @@ class CiscoOspfInterface(base_config):
         self.upref = None
         self.router = None
 
-class CiscoOspfArea(base_config):
+class CiscoOspfArea(BaseConfig):
     def __init__ (self, name, **kwargs):
-        base_config.__init__(self, None, name)
+        BaseConfig.__init__(self, None, name)
 
         self.vrf = 'default'
         for feature in kwargs.keys():
@@ -138,9 +138,9 @@ class CiscoOspfArea(base_config):
         for intf in ospf_interface:
             self.intf_list.append(intf)
 
-class CiscoOspf(base_config):
+class CiscoOspf(BaseConfig):
     def __init__ (self, name, **kwargs):
-        base_config.__init__(self, None, int(name))
+        BaseConfig.__init__(self, None, int(name))
         self.area_list = []
 
     def __repr__(self):
