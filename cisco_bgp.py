@@ -192,8 +192,10 @@ class CiscoBgpNeighbor(BaseConfig):
             for af in self.af_list:
                 af.__apply__(self)
 
-    def __detach__ (self):
+    def __detach__ (self, upref):
 
+        if not self.router:
+            self.router = upref.router
         for af in self.af_list:
             af.__detach__()
 
@@ -348,6 +350,19 @@ class CiscoBgpVrf(BaseConfig):
             self.neighbor_list.append(neighbor)
             if not self.is_default:
                 neighbor._set_vrf(self)
+
+    def remove_neighbor (self, *neighbors):
+        if (self.router):
+                self.router.toConfig()
+                self.router.writeWithResponce(f"router bgp {self.upref.name}", '(config-router)#')
+        for neighbor in neighbors:
+            if (self.router):
+                neighbor.__detach__(self)
+                # self.router.toConfig()
+
+            for n in self.neighbor_list:
+                if n.name == neighbor.name:
+                    self.neighbor_list.remove(n)
 
 class CiscoBgp(BaseConfig):
     def __init__ (self, name, **kwargs):
