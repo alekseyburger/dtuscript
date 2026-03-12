@@ -27,7 +27,7 @@ def get_vrf_name (vrf_or_name):
 PROMPT_CFG = '(config-if)#'
 class CiscoInterface(BaseConfig):
     '''
-    The CiscoInterface object contains the desired configuration for the interface.
+    CiscoInterface object contains desired configuration for the interface.
     However, the object is created not attached to the interface. Changing the 
     attributes of an non-attached object does not cause changes in the router 
     configuration until the .attach or .create methods are called. The .create 
