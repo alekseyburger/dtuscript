@@ -8,6 +8,7 @@ import logging
 from curses import ascii
 from exception_dev import ExceptionDevice
 
+# Configure section "dtulib" in [dtutest]/loggin.conf to manage logging for this module
 logger = logging.getLogger("dtulibLog")
 def trace(format):
     logger.debug(f'\n\x1b[1;94mCisco: {format}\x1b[0m')

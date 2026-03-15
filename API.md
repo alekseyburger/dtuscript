@@ -8,18 +8,34 @@ Purpose: Core Cisco device transport/session class over Telnet. It manages conne
 
 Methods:
 
-- `RouterCisco(ipAddress, port, user, password)`: Creates a Cisco session object. Parameters: `ipAddress` (device IP/DNS), `port` (Telnet console port), `user` (login name, stored for context), `password` (enable password used in `toExec`).
+- `RouterCisco(ipAddress, port, user, password)`: Creates a Cisco session object. 
+- Parameters: 
+- `ipAddress` (device IP/DNS), 
+- `port` (Telnet console port), 
+- `user` (login name, stored for context), 
+- `password` (enable password used in `toExec`).
+    Attributes: You can get it from the object
+`mode` the value of USER_MODE, EXEC_MODE, CONFIG_MODE, CONFIG_DEEP_MODE
+- `ignore_exception_syntax` (attribute, bool): When `True`, syntax errors detected in command responses do not raise `ExceptionDevice`.
+- `ignore_exception_connection` don't raise exception in case the value is `True`
+- Methods:
 - `start()`: Opens Telnet transport and initializes prompt/mode detection.
 - `end()`: Closes the active Telnet connection.
 - `waitPrompt() -> bool`: Sends newline, reads prompt, updates `self.mode` and `self.name`, and returns `True` when prompt is recognized.
 - `toUser()`: Attempts to move CLI back to user mode (`>`), using repeated `exit` when needed.
 - `toExec()`: Ensures exec mode (`#`), including enable-password flow if currently in user mode.
 - `toConfig()`: Ensures global config mode (`(config)#`) from any supported mode.
-- `writeWithResponce(command, expect=None)`: Sends one command and waits for expected text. Parameters: `command` (CLI command string), `expect` (optional prompt/token to wait for; defaults to current prompt).
 
-Attributes:
+- `writeWithResponse(command, expect=None)`: Sends one command and waits for expected text. 
+    Parameters: 
+    `command` (CLI command string),
+    `expect` (optional prompt/token to wait for; defaults to current prompt).
+    CLI output is accessible in attribute `resp`
 
-- `ignore_exception_syntax` (attribute, bool): When `True`, syntax errors detected in command responses do not raise `ExceptionDevice`.
+Exception: `ExceptionDevice` conveys error string as parameter
+
+
+
 
 ### `CiscoInterface`
 
@@ -42,6 +58,9 @@ Usage flow (`attach`, `create`, `modify`, `delete`):
 
 Attributes:
 
+- `is_subinterface` (bool): True if the interface is a subinterface (e.g., `GigabitEthernet1.100`).
+- `is_loopback` (bool): True if the interface is a Loopback interface (name starts with `loopback`).
+- `is_non_physical` (bool): True if the interface is non-physical (name starts with any of the prefixes in the constant list `["loopback", "bdi"]`).
 - `ipv4_address` (property): Returns configured IPv4 address (without prefix length) or `None`.
 - `ipv4_mask` (property): Returns configured IPv4 netmask in dotted format or `None`.
 
@@ -182,7 +201,7 @@ router.end()
 
 ### `LinuxCli`
 
-Purpose: SSH CLI session handler for Linux hosts. It establishes interactive SSH shell access via `paramiko`, detects prompt/readiness, sends commands, collects command output (including paginated `--More--` handling), and provides simple mode/output helpers used by automation flows.
+Purpose: SSH CLI session handler for Linux hosts. It establishes interactive SSH shell access via `Paramiko`, detects prompt/readiness, sends commands, collects command output (including paginated `--More--` handling), and provides simple mode/output helpers used by automation flows.
 
 - `LinuxCli(ipAddress, user, password, name=None)`: Creates Linux CLI session object. Parameters: `ipAddress` (host IP/DNS), `user` (SSH username), `password` (SSH password), `name` (optional prompt host token).
 - `startSSH() -> bool`: Opens SSH connection, starts interactive shell, and initializes prompt detection.

@@ -25,6 +25,7 @@ def get_vrf_name (vrf_or_name):
     return vrf_or_name
 
 PROMPT_CFG = '(config-if)#'
+NON_PHYSICAL_IFACES = ["loopback", "bdi"]
 class CiscoInterface(BaseConfig):
     '''
     CiscoInterface object contains desired configuration for the interface.
@@ -41,11 +42,14 @@ class CiscoInterface(BaseConfig):
     attr_list = ("vrf", "ipv4_address_mask", "ipv6_address_mask","description", "mpls",
         "vlanId")
 
+
     def __init__ (self, name):
         BaseConfig.__init__(self, None, name.lower())
 
         self.is_subinterface = (1 == len(re.findall(r"([a-zA-Z\-]+)([0-9\/]+)\.(\d+)",self.name)))
         self.is_loopback = (1 == len(re.findall(r"(loopback)\d+",self.name)))
+        # Set is_non_physical if interface name matches any in NON_PHYSICAL_IFACES
+        self.is_non_physical = any(self.name.startswith(prefix) for prefix in NON_PHYSICAL_IFACES)
 
     @property
     def ipv4_address (self):
@@ -134,14 +138,14 @@ class CiscoInterface(BaseConfig):
                 self.router.writeWithResponce(f'no description',PROMPT_CFG)
         elif feature == "mpls":
             self.mpls = value
-            if not self.is_loopback:
+            if not self.is_non_physical:
                 if self.mpls:
                     self.router.writeWithResponce(f"mpls ip",PROMPT_CFG)
                 else:
                     self.router.writeWithResponce(f"no mpls ip",PROMPT_CFG)
         elif feature == "vlanId":
             self.vlanId = value
-            if not self.is_loopback:
+            if not self.is_non_physical:
                 if self.vlanId:
                     self.router.writeWithResponce(f"vlan-id dot1q {self.vlanId}",PROMPT_CFG)
         else:
@@ -176,7 +180,7 @@ class CiscoInterface(BaseConfig):
         self.router = router
         # clean interface configuration
         self.router.toConfig()
-        if not self.is_subinterface and not self.is_loopback:
+        if not self.is_subinterface and not self.is_non_physical:
             self.router.writeWithResponce(f"default interface {self.name}",'(config)#')
         elif self.name in int_list:
             self.router.writeWithResponce(f"no interface {self.name}",'(config)#')
@@ -217,7 +221,7 @@ class CiscoInterface(BaseConfig):
             self.router = router
 
         self.router.toConfig()
-        if self.is_subinterface or self.is_loopback:
+        if self.is_subinterface or self.is_non_physical:
             self.router.writeWithResponce(f"no interface {self.name}", '(config)#')
         else:
             self.router.writeWithResponce(f"default interface {self.name}", '(config)#')
@@ -271,3 +275,35 @@ def cisco_get_all_interfaces (router):
         if match and len(match):
             int_list.append(match[0].lower())
     return int_list
+
+
+def cisco_get_all_interfaces_params (router):
+    """
+    Requests and parses the output of 'show ip interface brief' from a RouterCisco object.
+    :param router: RouterCisco instance
+    :return: List of dicts with keys: Interface, IP-Address, Status
+    """
+    router.toExec()
+    router.writeWithResponce("show ip interface brief")
+    lines = router.resp.splitlines()
+    if not lines:
+        return []
+    result = []
+    parsing = False
+    for line in lines:
+        if not parsing:
+            if line.strip().startswith('Interface'):
+                parsing = True
+            continue
+        # Now parsing data lines, skip the header itself
+        if '#' in line:
+            break
+        fields = re.split(r'\s{1,}', line.strip())
+        if len(fields) == 6:
+            iface = {
+                'Interface': fields[0].lower(),
+                'IP': fields[1],
+                'Status': fields[4],
+            }
+            result.append(iface)
+    return result
