@@ -39,8 +39,12 @@ class CiscoInterface(BaseConfig):
     the interface using the .delete method.
     '''
 
-    attr_list = ("vrf", "ipv4_address_mask", "ipv6_address_mask","description", "mpls",
-        "vlanId")
+    attr_list = ("vrf",
+                 "ipv4_address_mask",
+                 "ipv6_address_mask",
+                 "description",
+                 "mpls",
+                "vlanId")
 
 
     def __init__ (self, name):
@@ -96,6 +100,14 @@ class CiscoInterface(BaseConfig):
         setattr(self, feature, value) 
 
     def __apply_feature__(self, feature, value):
+        """
+        This method applies the configuration feature to the interface. It is expected that the
+        object is attached to an interface.  The method should be called for each feature that 
+        is being applied to the interface. It is expected that the method is called in the 
+        context of interface configuration mode. The method should not change the configuration 
+        of the interface if the value of the feature is None. The method should apply the default 
+        configuration if the value of the feature is False or empty string.
+        """
         if feature == "vrf":
             # remove ip addresses before move to vrf
             self.router.writeWithResponce(f"no ip address",PROMPT_CFG)
@@ -151,7 +163,7 @@ class CiscoInterface(BaseConfig):
         else:
             error(f" Unexpected cfg feature {feature}")
 
-    def __apply_features__(self):
+    def __apply_features__ (self):
         for feature in self.attr_list:
             if hasattr(self, feature):
                 self.__apply_feature__(feature, getattr(self, feature))
@@ -201,11 +213,13 @@ class CiscoInterface(BaseConfig):
         '''
 
         if self.router:
+            # Apply configuration immediately if the object is attached to an interface
             self.router.toConfig()
             self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
             for feature, value in kwargs.items():
                 self.__apply_feature__(feature, value)
         else:
+            # Just store the desired configuration in the object if it is not attached to an interface
             for feature, value in kwargs.items():
                 self.__set_feature__(feature, value)
         info(f" {self} modified")
