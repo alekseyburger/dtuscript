@@ -80,7 +80,11 @@ class CiscoInterface(BaseConfig):
         return utils_ipv4.mask_len_to_4digit(int(match[0]))
 
     def __repr__(self):
-        ret = f"interface {self.name}"
+        if self.router:
+            ret = f"{self.router.name} "
+        else:
+            ret = f"noname "
+        ret =  ret + f"interface {self.name}"
         if hasattr(self, "vrf") and not self.vrf is None:
             ret = ret + f" {self.vrf.name}"
         if hasattr(self, "ipv4_address_mask") and not self.ipv4_address_mask is None:
@@ -110,56 +114,56 @@ class CiscoInterface(BaseConfig):
         """
         if feature == "vrf":
             # remove ip addresses before move to vrf
-            self.router.writeWithResponce(f"no ip address",PROMPT_CFG)
-            self.router.writeWithResponce(f"no ipv6 address",PROMPT_CFG)
+            self.router.enterWithResponce(f"no ip address",PROMPT_CFG)
+            self.router.enterWithResponce(f"no ipv6 address",PROMPT_CFG)
             #  move to vrf
             vrf_name = get_vrf_name(value)
             if vrf_name and len(vrf_name):
-                self.router.writeWithResponce(f"ip vrf forwarding {vrf_name}",PROMPT_CFG)
+                self.router.enterWithResponce(f"ip vrf forwarding {vrf_name}",PROMPT_CFG)
             else:
-                self.router.writeWithResponce(f"no ip vrf forwarding",PROMPT_CFG)
+                self.router.enterWithResponce(f"no ip vrf forwarding",PROMPT_CFG)
             # restore ip addresses
             if hasattr(self, "ipv4_address_mask") and not self.ipv4_address_mask is None:
-                self.router.writeWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
+                self.router.enterWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
                     PROMPT_CFG)
             if hasattr(self, "ipv6_address_mask") and not self.ipv6_address_mask is None:
-                self.router.writeWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)       
+                self.router.enterWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)       
             self.vrf = value
 
         elif feature == "ipv4_address_mask":
             self.ipv4_address_mask = value
             if value:
-                self.router.writeWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
+                self.router.enterWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
                     PROMPT_CFG)
             else:
-                self.router.writeWithResponce(f"no ip address",PROMPT_CFG)
+                self.router.enterWithResponce(f"no ip address",PROMPT_CFG)
             
         elif feature == "ipv6_address_mask":
             self.ipv6_address_mask = value
             if value:
-                self.router.writeWithResponce('ipv6 enable',PROMPT_CFG)
-                self.router.writeWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)
+                self.router.enterWithResponce('ipv6 enable',PROMPT_CFG)
+                self.router.enterWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)
             else:
-                self.router.writeWithResponce(f"no ipv6 address",PROMPT_CFG)
-                self.router.writeWithResponce('no ipv6 enable',PROMPT_CFG)
+                self.router.enterWithResponce(f"no ipv6 address",PROMPT_CFG)
+                self.router.enterWithResponce('no ipv6 enable',PROMPT_CFG)
         elif feature == "description":
             self.description = value
             if value:
-                self.router.writeWithResponce(f'description "{self.description}"',PROMPT_CFG)
+                self.router.enterWithResponce(f'description "{self.description}"',PROMPT_CFG)
             else:
-                self.router.writeWithResponce(f'no description',PROMPT_CFG)
+                self.router.enterWithResponce(f'no description',PROMPT_CFG)
         elif feature == "mpls":
             self.mpls = value
             if not self.is_non_physical:
                 if self.mpls:
-                    self.router.writeWithResponce(f"mpls ip",PROMPT_CFG)
+                    self.router.enterWithResponce(f"mpls ip",PROMPT_CFG)
                 else:
-                    self.router.writeWithResponce(f"no mpls ip",PROMPT_CFG)
+                    self.router.enterWithResponce(f"no mpls ip",PROMPT_CFG)
         elif feature == "vlanId":
             self.vlanId = value
             if not self.is_non_physical:
                 if self.vlanId:
-                    self.router.writeWithResponce(f"vlan-id dot1q {self.vlanId}",PROMPT_CFG)
+                    self.router.enterWithResponce(f"vlan-id dot1q {self.vlanId}",PROMPT_CFG)
         else:
             error(f" Unexpected cfg feature {feature}")
 
@@ -193,11 +197,11 @@ class CiscoInterface(BaseConfig):
         # clean interface configuration
         self.router.toConfig()
         if not self.is_subinterface and not self.is_non_physical:
-            self.router.writeWithResponce(f"default interface {self.name}",'(config)#')
+            self.router.enterWithResponce(f"default interface {self.name}",'(config)#')
         elif self.name in int_list:
-            self.router.writeWithResponce(f"no interface {self.name}",'(config)#')
+            self.router.enterWithResponce(f"no interface {self.name}",'(config)#')
         # recreate interface and applay configured features
-        self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
         self.__apply_features__()
         info(f" {self} created")
         return True
@@ -215,7 +219,7 @@ class CiscoInterface(BaseConfig):
         if self.router:
             # Apply configuration immediately if the object is attached to an interface
             self.router.toConfig()
-            self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
+            self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
             for feature, value in kwargs.items():
                 self.__apply_feature__(feature, value)
         else:
@@ -236,9 +240,9 @@ class CiscoInterface(BaseConfig):
 
         self.router.toConfig()
         if self.is_subinterface or self.is_non_physical:
-            self.router.writeWithResponce(f"no interface {self.name}", '(config)#')
+            self.router.enterWithResponce(f"no interface {self.name}", '(config)#')
         else:
-            self.router.writeWithResponce(f"default interface {self.name}", '(config)#')
+            self.router.enterWithResponce(f"default interface {self.name}", '(config)#')
 
         info(f" {self} deleted")
         self.router = None
@@ -249,8 +253,8 @@ class CiscoInterface(BaseConfig):
         is attached to interface
         '''
         self.router.toConfig()
-        self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
-        self.router.writeWithResponce(f"no shutdown",PROMPT_CFG)      
+        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWithResponce(f"no shutdown",PROMPT_CFG)      
 
         info(f" {self} up")
 
@@ -260,8 +264,8 @@ class CiscoInterface(BaseConfig):
         is attached to interface
         '''
         self.router.toConfig()
-        self.router.writeWithResponce(f"interface {self.name}",PROMPT_CFG)
-        self.router.writeWithResponce(f"shutdown",PROMPT_CFG)      
+        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWithResponce(f"shutdown",PROMPT_CFG)      
 
         info(f" {self} down")
 
@@ -270,8 +274,7 @@ def cisco_get_all_interfaces (router):
     '''
     Returns the list of existing interfaces (from 'show ip interface brief')
     '''
-    router.toExec()
-    router.writeWithResponce('show ip interface brief')
+    router.enterExecCommand('show ip interface brief')
     int_list = []
 
     #remove show header
@@ -297,8 +300,7 @@ def cisco_get_all_interfaces_params (router):
     :param router: RouterCisco instance
     :return: List of dicts with keys: Interface, IP-Address, Status
     """
-    router.toExec()
-    router.writeWithResponce("show ip interface brief")
+    router.enterExecCommand("show ip interface brief")
     lines = router.resp.splitlines()
     if not lines:
         return []

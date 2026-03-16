@@ -146,7 +146,7 @@ class LinuxCli:
         self.mode, name = paraseResponce(self.resp)
         if not self.name and self.mode in MODES and name:
             self.name = name.strip()
-            trace(f"SET NAME {self.name}")
+            trace(f"connected {self.name}")
 
         trace(f"waitInput SUCCESS {len(self.resp)} bytes")
         device_log(self.resp)
@@ -171,12 +171,12 @@ class LinuxCli:
             self.channel.send('\n')
 
 
-    def writeWithResponce(self, command, expect=None):
-        """ writeWithResponce(command, expect)  sent command and wait expected respoce """
+    def enterWithResponce(self, command, expect=None):
+        """ enterWithResponce(command, expect)  sent command and wait expected respoce """
 
         # try:
 
-        trace(f"writeWithResponce SENT '{command}'")
+        trace(f"enterWithResponce SENT '{command}'")
         self.channel.send(command + "\n")
         device_log(command + "\n")
 
@@ -193,9 +193,9 @@ class LinuxCli:
 
         while self.mode != CONFIG_MODE:
             if self.mode == CONFIG_DEEP_MODE :
-                self.writeWithResponce("exit")
+                self.enterWithResponce("exit")
             elif self.mode == EXEC_MODE:
-                self.writeWithResponce("config")
+                self.enterWithResponce("config")
             elif self.mode == NONE_MODE:
                 self.waitPrompt()
 
@@ -203,7 +203,7 @@ class LinuxCli:
 
         while self.mode != EXEC_MODE:
             if self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
-                self.writeWithResponce("exit")
+                self.enterWithResponce("exit")
             elif self.mode == NONE_MODE:
                 self.waitPrompt()
 

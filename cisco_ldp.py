@@ -72,9 +72,9 @@ class CiscoLdp(BaseConfig):
         self.router = router
 
         self.router.toConfig()
-        self.router.writeWithResponce('mpls label protocol ldp', '(config)#')
+        self.router.enterWithResponce('mpls label protocol ldp', '(config)#')
         if hasattr(self, 'router_id') and self.router_id:
-            self.router.writeWithResponce(f'mpls ldp router-id {self.router_id}', '(config)#')
+            self.router.enterWithResponce(f'mpls ldp router-id {self.router_id}', '(config)#')
         self.router.toConfig()
 
         info(f'mpls ldp  {self.name} is created')
@@ -84,7 +84,7 @@ class CiscoLdp(BaseConfig):
             self.router = router
         self.router.toConfig()
 
-        self.router.writeWithResponce('no mpls ldp router-id', '(config)#')
+        self.router.enterWithResponce('no mpls ldp router-id', '(config)#')
 
         for intf in self.intf_list:
             intf.__detach__()

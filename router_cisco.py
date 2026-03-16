@@ -62,7 +62,12 @@ def paraseResponce(string):
                 mode = CONFIG_MODE
             else:
                 mode = CONFIG_DEEP_MODE
-    return (mode, found[-2] if len(found) > 1 else '' )
+        if len(found) > 1:
+            # name is before '(config' or at the end of string if '(config' is not found
+            name = found[-2].split('(')[0] if '(' in found[-2] else found[-2]
+        else:
+            name = '<noname>'
+    return (mode, name.strip())
 
 class RouterCisco:
 
@@ -83,6 +88,7 @@ class RouterCisco:
         try:
             self.tn = telnetlib.Telnet(self.ipAddress, self.port)
             self.waitPrompt()
+            self.toExec()
 
         except Exception as inst:
             error_text = "start except " + str(type(inst))
@@ -154,10 +160,10 @@ class RouterCisco:
                 return
             if self.mode == USER_MODE:
                 if len(self.password):
-                    self.writeWithResponce("ena", "assword:")
-                    self.writeWithResponce(self.password, self.name+"#")
+                    self.enterWithResponce("ena", "assword:")
+                    self.enterWithResponce(self.password, self.name+"#")
                 else:
-                    self.writeWithResponce("ena", self.name+"#")
+                    self.enterWithResponce("ena", self.name+"#")
                 continue
             if self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
                 self.tn.write(ascii.ctrl('z').encode('utf-8'))
@@ -178,20 +184,21 @@ class RouterCisco:
                 self.toExec()
                 continue
             if self.mode == EXEC_MODE:
-                self.writeWithResponce("config term", "(config)#")
+                self.enterWithResponce("config term", "(config)#")
                 continue
             repeat -= 1
         raise Exception(f"{self.name}: Can't get Config mode")
 
 
-    def writeWithResponce(self, command, expect=None):
-            """ writeWithResponce(command, expect)  sent command and wait expected respoce """
+    def enterWithResponce(self, command, expect=None):
+            """ enterWithResponce(command, expect)  sent command and wait expected respoce """
             if not expect:
                 expect = f'{self.name}'
                 if self.mode == USER_MODE:
                     expect = expect + ">"
                 else:
                     expect = expect + "#"
+            device_log(f"{self.name} ENTER: {command} EXPECT: {expect} MODE: {self.mode}")
             try:
                 command += "\n"
                 trace(f"SEND: {command}  EXPEXT:{expect}")
@@ -205,10 +212,33 @@ class RouterCisco:
                 error(error_text)    # the exception instance
                 return
               
-            device_log(f"{self.resp}")
+            device_log(f"RESPONCE: {self.resp}")
             invalid_input = re.findall(r'^\%',self.resp,re.MULTILINE)
             if len(invalid_input) and not self.ignore_exception_syntax:
                 raise ExceptionDevice("syntax error", self.resp)
+
+    def enterExecCommand(self, command):
+            """Execute an exec-mode command from any mode.
+
+            If the router is in CONFIG modes, the command is prefixed with
+            'do '. If the router is in USER mode, it switches to EXEC mode
+            first. In EXEC mode, the command is executed as-is.
+
+            Args:
+                command (str): The exec mode command to execute (e.g. 'show ip int br').
+                expect (str, optional): Explicit expected prompt. If not provided,
+                    the default logic of enterWithResponce() is used.
+            """
+
+            # Ensure we know the current mode if it's not set yet
+            if self.mode == EXEC_MODE:
+                self.enterWithResponce(command, '#')
+            elif self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
+                self.enterWithResponce(f"do {command}", ')#')
+            else:
+                # Go to EXEC (enable) and run the command
+                self.toExec()
+                self.enterWithResponce(command, '#')
 
 
 

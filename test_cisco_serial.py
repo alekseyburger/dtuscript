@@ -20,7 +20,7 @@ logger.info("-- Start --")
 crouter = RouterCisco(HOST, port, "cisco", "cisco")
 crouter.start()
 crouter.toExec()
-crouter.writeWithResponce("terminal length 0")
+crouter.enterWithResponce("terminal length 0")
 
 GE1 = CiscoInterface('GigabitEthernet1')
 if not GE1.attach(crouter):
@@ -57,16 +57,13 @@ logger.info(cisco_get_all_bgp(crouter))
 # remove BGP
 bgp.delete()
 
-crouter.toExec()
-crouter.writeWithResponce("show ip int b", "#")
+crouter.enterExecCommand("show ip int b", "#")
 
 L100.delete()
 
-crouter.toExec()
-crouter.writeWithResponce("show ip int b", "#")
+crouter.enterExecCommand("show ip int b", "#")
 
-crouter.toExec()
-crouter.writeWithResponce("show platform", "#")
+crouter.enterExecCommand("show platform", "#")
 
 crouter.end()
 

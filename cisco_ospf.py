@@ -56,7 +56,11 @@ class CiscoOspfInterface(BaseConfig):
                 raise Exception(f'CiscoOspfInterface: unexpectd feature {feature}')
 
     def __repr__(self):
-        ret = f"CiscoOspfInterface {self.name}"
+        if self.router:
+            ret = f"{self.router.name} :"
+        else:
+            ret = f"noname: "
+        ret =  ret + f"CiscoOspfInterface {self.name}"
         if hasattr(self, "network_type"):
             ret = ret + f" {self.network_type}"
         return ret
@@ -69,18 +73,18 @@ class CiscoOspfInterface(BaseConfig):
         self.router = upref.router
 
         self.router.toConfig
-        self.router.writeWithResponce(f"interface {self.name}", '(config-if)#')
-        self.router.writeWithResponce(f'ip ospf {self.upref.upref.name} area {self.upref.name}', '(config-if)#')
+        self.router.enterWithResponce(f"interface {self.name}", '(config-if)#')
+        self.router.enterWithResponce(f'ip ospf {self.upref.upref.name} area {self.upref.name}', '(config-if)#')
         # if hasattr(self, "mtu") and self.mtu:
-        #     self.router.writeWithResponce(f"mtu {self.mtu}", '#')
+        #     self.router.enterWithResponce(f"mtu {self.mtu}", '#')
         # else:
-        #     self.router.writeWithResponce(f"no mtu", '#')
+        #     self.router.enterWithResponce(f"no mtu", '#')
         # if hasattr(self, "metric") and self.metric:
-        #     self.router.writeWithResponce(f"metric {self.metric}", '#')
+        #     self.router.enterWithResponce(f"metric {self.metric}", '#')
         # else:
-        #     self.router.writeWithResponce(f"no metric", '#')
+        #     self.router.enterWithResponce(f"no metric", '#')
         if not hasattr(self,'passive') or not self.passive:
-            self.router.writeWithResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
+            self.router.enterWithResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
         self.router.toConfig
 
     def __detach__ (self):
@@ -106,7 +110,11 @@ class CiscoOspfArea(BaseConfig):
         self.intf_list = []
 
     def __repr__(self):
-        ret = f"CiscoOspfArea {self.name}"
+        if self.router:
+            ret = f"{self.router.name} :"
+        else:
+            ret = f"noname: "
+        ret =  ret + f"CiscoOspfArea {self.name}"
         return ret
 
     def create (self):
@@ -116,7 +124,7 @@ class CiscoOspfArea(BaseConfig):
         self.upref = upref
         self.router = upref.router
 
-        # self.router.writeWithResponce(f"area {self.name}", '#')
+        # self.router.enterWithResponce(f"area {self.name}", '#')
         for ospf_intf in self.intf_list:
             ospf_intf.__apply__(self)
 
@@ -124,7 +132,7 @@ class CiscoOspfArea(BaseConfig):
 
         for ospf_intf in self.intf_list:
             if hasattr(ospf_intf,'passive') and ospf_intf.passive:
-                self.router.writeWithResponce(f'passive-interface {ospf_intf.name}', '(config-router)#')
+                self.router.enterWithResponce(f'passive-interface {ospf_intf.name}', '(config-router)#')
 
     def __detach__ (self):
 
@@ -144,7 +152,11 @@ class CiscoOspf(BaseConfig):
         self.area_list = []
 
     def __repr__(self):
-        ret = f"CiscoOsp {self.name}"
+        if self.router:
+            ret = f"{self.router.name} "
+        else:
+            ret = f"noname  "
+        ret =  ret + f"Ospf {self.name}"
         return ret
 
     def add_area (self, ospf_area):
@@ -159,24 +171,26 @@ class CiscoOspf(BaseConfig):
             area.__apply__(self)
     
         self.router.toConfig()
-        self.router.writeWithResponce(f"router ospf {self.name}", '(config-router)#')
+        self.router.enterWithResponce(f"router ospf {self.name}", '(config-router)#')
         for area in self.area_list:
             area.__apply__phase2__(self)
         self.router.toConfig()
 
-        info(f"router ospf {self.name} created")
+        info(f"{self} created")
 
     def delete (self, router=None):
         if router:
             self.router = router
         self.router.toConfig()
 
-        self.router.writeWithResponce(f"no router ospf {self.name}", '(config)#')
+        self.router.enterWithResponce(f"no router ospf {self.name}", '(config)#')
 
         for area in self.area_list:
             area.__detach__()
 
+        info(f"{self} deleted")
+
         self.router.toConfig()
         self.router = None
 
-        info(f"router ospf {self.name} deleted")
+        
