@@ -108,7 +108,7 @@ class LinuxCli:
         #re.compile(r'\x1b\[\d+m')
         return pattern.sub('', ascii)        
 
-    def waitInput(self, prefix=None, clean=False):
+    def readPrompt(self, prefix=None, clean=False):
         
         # if we have data in buffer from previous input return it
         if not clean and self.resp:
@@ -122,7 +122,7 @@ class LinuxCli:
         #try:
 
         while  self.checkReady():
-            trace("waitInput IS READY - READ")
+            trace("readPrompt IS READY - READ")
             resp = self.binaryToAscii(self.channel.recv(self.input_size))
 
             # remove the command from the input buffer
@@ -134,7 +134,7 @@ class LinuxCli:
 
             # send backspace if --More-- prompt is faced
             if PATTERN_MORE.search(resp):
-                trace("waitInput MORE FOUND")
+                trace("readPrompt MORE FOUND")
                 self.channel.send(" ")
 
             # it looks to be cli prompt - done
@@ -148,7 +148,7 @@ class LinuxCli:
             self.name = name.strip()
             trace(f"connected {self.name}")
 
-        trace(f"waitInput SUCCESS {len(self.resp)} bytes")
+        trace(f"readPrompt SUCCESS {len(self.resp)} bytes")
         device_log(self.resp)
         return self.resp
 
@@ -159,7 +159,7 @@ class LinuxCli:
 
         for repeat in range(self.wait_count):
 
-            resp = self.waitInput(clean=True)
+            resp = self.readPrompt(clean=True)
 
             if self.mode in MODES:
                 trace(f"waitPrompt: MODE: {self.mode}")
@@ -171,17 +171,17 @@ class LinuxCli:
             self.channel.send('\n')
 
 
-    def enterWithResponce(self, command, expect=None):
-        """ enterWithResponce(command, expect)  sent command and wait expected respoce """
+    def enterWaitResponce(self, command, expect=None):
+        """ enterWaitResponce(command, expect)  sent command and wait expected respoce """
 
         # try:
 
-        trace(f"enterWithResponce SENT '{command}'")
+        trace(f"enterWaitResponce SENT '{command}'")
         self.channel.send(command + "\n")
         device_log(command + "\n")
 
         self.resp = None
-        self.waitInput(prefix=command)
+        self.readPrompt(prefix=command)
 
         # if not expect:
         #     self.waitPrompt()
@@ -193,9 +193,9 @@ class LinuxCli:
 
         while self.mode != CONFIG_MODE:
             if self.mode == CONFIG_DEEP_MODE :
-                self.enterWithResponce("exit")
+                self.enterWaitResponce("exit")
             elif self.mode == EXEC_MODE:
-                self.enterWithResponce("config")
+                self.enterWaitResponce("config")
             elif self.mode == NONE_MODE:
                 self.waitPrompt()
 
@@ -203,7 +203,7 @@ class LinuxCli:
 
         while self.mode != EXEC_MODE:
             if self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
-                self.enterWithResponce("exit")
+                self.enterWaitResponce("exit")
             elif self.mode == NONE_MODE:
                 self.waitPrompt()
 

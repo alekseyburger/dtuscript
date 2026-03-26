@@ -20,7 +20,7 @@ logger.info("-- Start --")
 crouter = RouterCisco(HOST, port, "cisco", "cisco")
 crouter.start()
 crouter.toExec()
-crouter.enterWithResponce("terminal length 0")
+crouter.enterWaitResponce("terminal length 0")
 
 GE1 = CiscoInterface('GigabitEthernet1')
 if not GE1.attach(crouter):

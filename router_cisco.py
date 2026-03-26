@@ -160,10 +160,10 @@ class RouterCisco:
                 return
             if self.mode == USER_MODE:
                 if len(self.password):
-                    self.enterWithResponce("ena", "assword:")
-                    self.enterWithResponce(self.password, self.name+"#")
+                    self.enterWaitResponce("ena", "assword:")
+                    self.enterWaitResponce(self.password, self.name+"#")
                 else:
-                    self.enterWithResponce("ena", self.name+"#")
+                    self.enterWaitResponce("ena", self.name+"#")
                 continue
             if self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
                 self.tn.write(ascii.ctrl('z').encode('utf-8'))
@@ -184,14 +184,14 @@ class RouterCisco:
                 self.toExec()
                 continue
             if self.mode == EXEC_MODE:
-                self.enterWithResponce("config term", "(config)#")
+                self.enterWaitResponce("config term", "(config)#")
                 continue
             repeat -= 1
         raise Exception(f"{self.name}: Can't get Config mode")
 
 
-    def enterWithResponce(self, command, expect=None):
-            """ enterWithResponce(command, expect)  sent command and wait expected respoce """
+    def enterWaitResponce(self, command, expect=None):
+            """ enterWaitResponce(command, expect)  sent command and wait expected respoce """
             if not expect:
                 expect = f'{self.name}'
                 if self.mode == USER_MODE:
@@ -227,18 +227,18 @@ class RouterCisco:
             Args:
                 command (str): The exec mode command to execute (e.g. 'show ip int br').
                 expect (str, optional): Explicit expected prompt. If not provided,
-                    the default logic of enterWithResponce() is used.
+                    the default logic of enterWaitResponce() is used.
             """
 
             # Ensure we know the current mode if it's not set yet
             if self.mode == EXEC_MODE:
-                self.enterWithResponce(command, '#')
+                self.enterWaitResponce(command, '#')
             elif self.mode in [CONFIG_MODE, CONFIG_DEEP_MODE]:
-                self.enterWithResponce(f"do {command}", ')#')
+                self.enterWaitResponce(f"do {command}", ')#')
             else:
                 # Go to EXEC (enable) and run the command
                 self.toExec()
-                self.enterWithResponce(command, '#')
+                self.enterWaitResponce(command, '#')
 
 
 

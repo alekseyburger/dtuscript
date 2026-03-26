@@ -42,24 +42,24 @@ class CiscoVrfAFamily(BaseConfig):
         self.router = upref.router
 
         if self.name == VRF_AFAMILY_IPV4_UNICAST:
-            self.router.enterWithResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
+            self.router.enterWaitResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
         elif self.name == VRF_AFAMILY_IPV6_UNICAST:
             raise Exception('CiscoVrf: ipv6 vrf is not supported')
         else:
             raise Exception(f'CiscoVrf: Unexpected vrf type "{self.name}"')
 
         if hasattr(self.upref, "rd") and self.upref.rd:
-            self.router.enterWithResponce(f"rd {self.upref.rd}", '(config-vrf)#')
+            self.router.enterWaitResponce(f"rd {self.upref.rd}", '(config-vrf)#')
         else:
             raise Exception('CiscoVrf: RD is mondatory!')
 
         for target in self.import_list:
-            self.router.enterWithResponce(f'route-target import {target}' , '(config-vrf)#')
+            self.router.enterWaitResponce(f'route-target import {target}' , '(config-vrf)#')
         for target in self.export_list:
-            self.router.enterWithResponce(f'route-target export {target}' , '(config-vrf)#')
+            self.router.enterWaitResponce(f'route-target export {target}' , '(config-vrf)#')
 
     def __detach__ (self):
-        self.router.enterWithResponce(f'no ip vrf {self.upref.name}', '(config)#')
+        self.router.enterWaitResponce(f'no ip vrf {self.upref.name}', '(config)#')
 
         self.upref = None
         self.router = None
@@ -68,8 +68,8 @@ class CiscoVrfAFamily(BaseConfig):
         for target in targets:
             if (self.router):
                 self.router.toConfig()
-                self.router.enterWithResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
-                self.router.enterWithResponce(f'route-target import {target}' , '(config-vrf)#')
+                self.router.enterWaitResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
+                self.router.enterWaitResponce(f'route-target import {target}' , '(config-vrf)#')
                 self.router.toConfig()
             self.import_list.append(target)
 
@@ -77,8 +77,8 @@ class CiscoVrfAFamily(BaseConfig):
         for target in targets:
             if (self.router):
                 self.router.toConfig()
-                self.router.enterWithResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
-                self.router.enterWithResponce(f'route-target export {target}' , '(config-vrf)#')
+                self.router.enterWaitResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
+                self.router.enterWaitResponce(f'route-target export {target}' , '(config-vrf)#')
                 self.router.toConfig()
             self.export_list.append(target)
 
@@ -126,7 +126,7 @@ class CiscoVrf(BaseConfig):
         self.router.toConfig()
         try:
             if not len(self.af_list):
-                self.router.enterWithResponce(f'no ip vrf {self.name}', '(config)#')
+                self.router.enterWaitResponce(f'no ip vrf {self.name}', '(config)#')
             else:
                 for af in self.af_list:
                     af.__detach__()

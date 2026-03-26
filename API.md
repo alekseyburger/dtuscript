@@ -208,9 +208,9 @@ Purpose: SSH CLI session handler for Linux hosts. It establishes interactive SSH
 - `end()`: Closes channel and SSH client.
 - `checkReady() -> bool`: Waits for channel readability and reports whether buffered data is ready.
 - `binaryToAscii(binary) -> str`: Decodes bytes and strips common ANSI escape sequences. Parameters: `binary` (raw bytes from SSH channel).
-- `waitInput(prefix=None, clean=False) -> str`: Reads command output until prompt/pager conditions are satisfied. Parameters: `prefix` (optional command echo to trim), `clean` (when `True`, ignore previously buffered response).
+- `readPrompt(prefix=None, clean=False) -> str`: Reads command output until prompt/pager conditions are satisfied. Parameters: `prefix` (optional command echo to trim), `clean` (when `True`, ignore previously buffered response).
 - `waitPrompt()`: Repeatedly probes until a recognized prompt/mode is detected.
-- `enterWithResponce(command, expect=None)`: Sends command and collects response into `self.resp`. Parameters: `command` (shell command string), `expect` (unused compatibility parameter).
+- `enterWaitResponce(command, expect=None)`: Sends command and collects response into `self.resp`. Parameters: `command` (shell command string), `expect` (unused compatibility parameter).
 - `toConfig()`: Attempts transition to config-like mode by issuing mode-changing commands.
 - `toExec()`: Attempts transition back to exec-like mode.
 - `doesOutputContain(substr) -> bool`: Checks whether latest response contains substring. Parameters: `substr` (search text).
@@ -228,10 +228,10 @@ from linux_cli import LinuxCli
 
 cli = LinuxCli("192.0.2.10", "admin", "password")
 if cli.startSSH():
-    cli.enterWithResponce("hostname")
+    cli.enterWaitResponce("hostname")
     print(cli.resp)
 
-    cli.enterWithResponce("ip -br address")
+    cli.enterWaitResponce("ip -br address")
     print(cli.resp)
 
     if cli.doesOutputContain("eth0"):

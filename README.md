@@ -13,7 +13,7 @@ router = RouterCisco(HOST, port, "name", "pass")
 router.start()    # start conntction
 router.toExec()   # go to exec mode
 # print platform info
-router.enterWithResponce("show platform", "#")
+router.enterWaitResponce("show platform", "#")
 print(router.resp)
 ```
 

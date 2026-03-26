@@ -73,18 +73,18 @@ class CiscoOspfInterface(BaseConfig):
         self.router = upref.router
 
         self.router.toConfig
-        self.router.enterWithResponce(f"interface {self.name}", '(config-if)#')
-        self.router.enterWithResponce(f'ip ospf {self.upref.upref.name} area {self.upref.name}', '(config-if)#')
+        self.router.enterWaitResponce(f"interface {self.name}", '(config-if)#')
+        self.router.enterWaitResponce(f'ip ospf {self.upref.upref.name} area {self.upref.name}', '(config-if)#')
         # if hasattr(self, "mtu") and self.mtu:
-        #     self.router.enterWithResponce(f"mtu {self.mtu}", '#')
+        #     self.router.enterWaitResponce(f"mtu {self.mtu}", '#')
         # else:
-        #     self.router.enterWithResponce(f"no mtu", '#')
+        #     self.router.enterWaitResponce(f"no mtu", '#')
         # if hasattr(self, "metric") and self.metric:
-        #     self.router.enterWithResponce(f"metric {self.metric}", '#')
+        #     self.router.enterWaitResponce(f"metric {self.metric}", '#')
         # else:
-        #     self.router.enterWithResponce(f"no metric", '#')
+        #     self.router.enterWaitResponce(f"no metric", '#')
         if not hasattr(self,'passive') or not self.passive:
-            self.router.enterWithResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
+            self.router.enterWaitResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
         self.router.toConfig
 
     def __detach__ (self):
@@ -124,7 +124,7 @@ class CiscoOspfArea(BaseConfig):
         self.upref = upref
         self.router = upref.router
 
-        # self.router.enterWithResponce(f"area {self.name}", '#')
+        # self.router.enterWaitResponce(f"area {self.name}", '#')
         for ospf_intf in self.intf_list:
             ospf_intf.__apply__(self)
 
@@ -132,7 +132,7 @@ class CiscoOspfArea(BaseConfig):
 
         for ospf_intf in self.intf_list:
             if hasattr(ospf_intf,'passive') and ospf_intf.passive:
-                self.router.enterWithResponce(f'passive-interface {ospf_intf.name}', '(config-router)#')
+                self.router.enterWaitResponce(f'passive-interface {ospf_intf.name}', '(config-router)#')
 
     def __detach__ (self):
 
@@ -171,7 +171,7 @@ class CiscoOspf(BaseConfig):
             area.__apply__(self)
     
         self.router.toConfig()
-        self.router.enterWithResponce(f"router ospf {self.name}", '(config-router)#')
+        self.router.enterWaitResponce(f"router ospf {self.name}", '(config-router)#')
         for area in self.area_list:
             area.__apply__phase2__(self)
         self.router.toConfig()
@@ -183,7 +183,7 @@ class CiscoOspf(BaseConfig):
             self.router = router
         self.router.toConfig()
 
-        self.router.enterWithResponce(f"no router ospf {self.name}", '(config)#')
+        self.router.enterWaitResponce(f"no router ospf {self.name}", '(config)#')
 
         for area in self.area_list:
             area.__detach__()

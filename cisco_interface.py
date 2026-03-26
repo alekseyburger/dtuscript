@@ -114,56 +114,56 @@ class CiscoInterface(BaseConfig):
         """
         if feature == "vrf":
             # remove ip addresses before move to vrf
-            self.router.enterWithResponce(f"no ip address",PROMPT_CFG)
-            self.router.enterWithResponce(f"no ipv6 address",PROMPT_CFG)
+            self.router.enterWaitResponce(f"no ip address",PROMPT_CFG)
+            self.router.enterWaitResponce(f"no ipv6 address",PROMPT_CFG)
             #  move to vrf
             vrf_name = get_vrf_name(value)
             if vrf_name and len(vrf_name):
-                self.router.enterWithResponce(f"ip vrf forwarding {vrf_name}",PROMPT_CFG)
+                self.router.enterWaitResponce(f"ip vrf forwarding {vrf_name}",PROMPT_CFG)
             else:
-                self.router.enterWithResponce(f"no ip vrf forwarding",PROMPT_CFG)
+                self.router.enterWaitResponce(f"no ip vrf forwarding",PROMPT_CFG)
             # restore ip addresses
             if hasattr(self, "ipv4_address_mask") and not self.ipv4_address_mask is None:
-                self.router.enterWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
+                self.router.enterWaitResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
                     PROMPT_CFG)
             if hasattr(self, "ipv6_address_mask") and not self.ipv6_address_mask is None:
-                self.router.enterWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)       
+                self.router.enterWaitResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)       
             self.vrf = value
 
         elif feature == "ipv4_address_mask":
             self.ipv4_address_mask = value
             if value:
-                self.router.enterWithResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
+                self.router.enterWaitResponce(f"ip address  {self.ipv4_address} {self.ipv4_mask}",
                     PROMPT_CFG)
             else:
-                self.router.enterWithResponce(f"no ip address",PROMPT_CFG)
+                self.router.enterWaitResponce(f"no ip address",PROMPT_CFG)
             
         elif feature == "ipv6_address_mask":
             self.ipv6_address_mask = value
             if value:
-                self.router.enterWithResponce('ipv6 enable',PROMPT_CFG)
-                self.router.enterWithResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)
+                self.router.enterWaitResponce('ipv6 enable',PROMPT_CFG)
+                self.router.enterWaitResponce(f"ipv6 address {self.ipv6_address_mask}",PROMPT_CFG)
             else:
-                self.router.enterWithResponce(f"no ipv6 address",PROMPT_CFG)
-                self.router.enterWithResponce('no ipv6 enable',PROMPT_CFG)
+                self.router.enterWaitResponce(f"no ipv6 address",PROMPT_CFG)
+                self.router.enterWaitResponce('no ipv6 enable',PROMPT_CFG)
         elif feature == "description":
             self.description = value
             if value:
-                self.router.enterWithResponce(f'description "{self.description}"',PROMPT_CFG)
+                self.router.enterWaitResponce(f'description "{self.description}"',PROMPT_CFG)
             else:
-                self.router.enterWithResponce(f'no description',PROMPT_CFG)
+                self.router.enterWaitResponce(f'no description',PROMPT_CFG)
         elif feature == "mpls":
             self.mpls = value
             if not self.is_non_physical:
                 if self.mpls:
-                    self.router.enterWithResponce(f"mpls ip",PROMPT_CFG)
+                    self.router.enterWaitResponce(f"mpls ip",PROMPT_CFG)
                 else:
-                    self.router.enterWithResponce(f"no mpls ip",PROMPT_CFG)
+                    self.router.enterWaitResponce(f"no mpls ip",PROMPT_CFG)
         elif feature == "vlanId":
             self.vlanId = value
             if not self.is_non_physical:
                 if self.vlanId:
-                    self.router.enterWithResponce(f"vlan-id dot1q {self.vlanId}",PROMPT_CFG)
+                    self.router.enterWaitResponce(f"vlan-id dot1q {self.vlanId}",PROMPT_CFG)
         else:
             error(f" Unexpected cfg feature {feature}")
 
@@ -183,6 +183,7 @@ class CiscoInterface(BaseConfig):
         if self.name not in int_list:
             return False
         self.router = router
+        info(f" {self} attached")
         return True
 
     
@@ -197,11 +198,11 @@ class CiscoInterface(BaseConfig):
         # clean interface configuration
         self.router.toConfig()
         if not self.is_subinterface and not self.is_non_physical:
-            self.router.enterWithResponce(f"default interface {self.name}",'(config)#')
+            self.router.enterWaitResponce(f"default interface {self.name}",'(config)#')
         elif self.name in int_list:
-            self.router.enterWithResponce(f"no interface {self.name}",'(config)#')
+            self.router.enterWaitResponce(f"no interface {self.name}",'(config)#')
         # recreate interface and applay configured features
-        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
         self.__apply_features__()
         info(f" {self} created")
         return True
@@ -219,7 +220,7 @@ class CiscoInterface(BaseConfig):
         if self.router:
             # Apply configuration immediately if the object is attached to an interface
             self.router.toConfig()
-            self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
+            self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
             for feature, value in kwargs.items():
                 self.__apply_feature__(feature, value)
         else:
@@ -240,9 +241,9 @@ class CiscoInterface(BaseConfig):
 
         self.router.toConfig()
         if self.is_subinterface or self.is_non_physical:
-            self.router.enterWithResponce(f"no interface {self.name}", '(config)#')
+            self.router.enterWaitResponce(f"no interface {self.name}", '(config)#')
         else:
-            self.router.enterWithResponce(f"default interface {self.name}", '(config)#')
+            self.router.enterWaitResponce(f"default interface {self.name}", '(config)#')
 
         info(f" {self} deleted")
         self.router = None
@@ -253,8 +254,8 @@ class CiscoInterface(BaseConfig):
         is attached to interface
         '''
         self.router.toConfig()
-        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
-        self.router.enterWithResponce(f"no shutdown",PROMPT_CFG)      
+        self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWaitResponce(f"no shutdown",PROMPT_CFG)      
 
         info(f" {self} up")
 
@@ -264,8 +265,8 @@ class CiscoInterface(BaseConfig):
         is attached to interface
         '''
         self.router.toConfig()
-        self.router.enterWithResponce(f"interface {self.name}",PROMPT_CFG)
-        self.router.enterWithResponce(f"shutdown",PROMPT_CFG)      
+        self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
+        self.router.enterWaitResponce(f"shutdown",PROMPT_CFG)      
 
         info(f" {self} down")
 

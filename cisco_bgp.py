@@ -85,17 +85,17 @@ class CiscoBgpNeighborAFamily(BaseConfig):
         self.upref = upref
         self.router = upref.router   
      
-        self.router.enterWithResponce(self._get_af_headline(), '(config-router-af)#')
+        self.router.enterWaitResponce(self._get_af_headline(), '(config-router-af)#')
         
         if  upref not in self.neighbor_list:
-            self.router.enterWithResponce(f'neighbor {upref.name} activate' , '(config-router-af)#')
+            self.router.enterWaitResponce(f'neighbor {upref.name} activate' , '(config-router-af)#')
             self.neighbor_list.add(upref)
         
         if is_first_call:
             for feature in self.feature_set:
-                self.router.enterWithResponce(f'neighbor {upref.name} {feature}', '(config-router-af)#')
+                self.router.enterWaitResponce(f'neighbor {upref.name} {feature}', '(config-router-af)#')
 
-        self.router.enterWithResponce('exit-address-family' , '(config-router)#')
+        self.router.enterWaitResponce('exit-address-family' , '(config-router)#')
 
     def __detach__ (self):
         self.upref = None
@@ -112,10 +112,10 @@ class CiscoBgpNeighborAFamily(BaseConfig):
         if feature_str and self.router:
             prefix = 'no ' if is_no else ''
             self.router.toConfig()
-            self.router.enterWithResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
-            self.router.enterWithResponce(self._get_af_headline(), '(config-router-af)#')
-            self.router.enterWithResponce(f'{prefix}neighbor {self.upref.name} {feature_str}', '(config-router-af)#')
-            self.router.enterWithResponce('exit-address-family' , '(config-router)#')
+            self.router.enterWaitResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+            self.router.enterWaitResponce(self._get_af_headline(), '(config-router-af)#')
+            self.router.enterWaitResponce(f'{prefix}neighbor {self.upref.name} {feature_str}', '(config-router-af)#')
+            self.router.enterWaitResponce('exit-address-family' , '(config-router)#')
 
     def get_router_name (self):
         if not self.router:
@@ -168,15 +168,15 @@ class CiscoBgpNeighbor(BaseConfig):
         for af in afamily:
             if self.router:
                 self.router.toConfig()
-                self.router.enterWithResponce(f"router bgp {self.upref.upref.name}", '(config-router)#')
+                self.router.enterWaitResponce(f"router bgp {self.upref.upref.name}", '(config-router)#')
                 af.__apply__(self)
                 self.router.toConfig()
             self.af_list.append(af)
 
     def __write_neighbor_params__ (self):
-        self.router.enterWithResponce(f"neighbor {self.name} remote-as {self.as_number}", '#')
+        self.router.enterWaitResponce(f"neighbor {self.name} remote-as {self.as_number}", '#')
         if hasattr(self, "local_address") and self.local_address:
-            self.router.enterWithResponce(f"neighbor {self.name} update-source {self.local_address}", '#')        
+            self.router.enterWaitResponce(f"neighbor {self.name} update-source {self.local_address}", '#')        
 
     def __apply__ (self, upref):
         self.upref = upref
@@ -184,7 +184,7 @@ class CiscoBgpNeighbor(BaseConfig):
 
         if self.vrf:  # neighbor in vrf
             for af in self.af_list:
-                self.router.enterWithResponce(f'{af._get_af_headline()}','#')
+                self.router.enterWaitResponce(f'{af._get_af_headline()}','#')
                 self.__write_neighbor_params__()
                 af.__apply__(self)
         else:
@@ -199,7 +199,7 @@ class CiscoBgpNeighbor(BaseConfig):
         for af in self.af_list:
             af.__detach__()
 
-        self.router.enterWithResponce(f"no neighbor {self.name}", '#')
+        self.router.enterWaitResponce(f"no neighbor {self.name}", '#')
         self.upref = None
         self.router = None
 
@@ -256,13 +256,13 @@ class CiscoBgpAFamily(BaseConfig):
         self.upref = upref  # Parent BgpVrf
         self.router = upref.router
 
-        self.router.enterWithResponce(_cisco_bgp_get_af_command(self.name), "(config-router-af)#")
+        self.router.enterWaitResponce(_cisco_bgp_get_af_command(self.name), "(config-router-af)#")
         # set features
         for feature in self.feature_set:
-            self.router.enterWithResponce(feature, "(config-router-af)#")
+            self.router.enterWaitResponce(feature, "(config-router-af)#")
             # print(feature)
 
-        self.router.enterWithResponce("exit-address-family", "(config-router)#")
+        self.router.enterWaitResponce("exit-address-family", "(config-router)#")
 
     def __detach__ (self):
         self.upref = None
@@ -276,10 +276,10 @@ class CiscoBgpAFamily(BaseConfig):
         if feature_str and self.router:
             prefix = 'no ' if is_no else ''
             self.router.toConfig()
-            self.router.enterWithResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
-            self.router.enterWithResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
-            self.router.enterWithResponce(f'{prefix} {feature_str}', '(config-router-af)#')
-            self.router.enterWithResponce('exit-address-family' , '(config-router)#')
+            self.router.enterWaitResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+            self.router.enterWaitResponce(_cisco_bgp_get_af_command(self.name) , '(config-router-af)#')
+            self.router.enterWaitResponce(f'{prefix} {feature_str}', '(config-router-af)#')
+            self.router.enterWaitResponce('exit-address-family' , '(config-router)#')
 
     def get_router_name (self):
         if not self.router:
@@ -334,7 +334,7 @@ class CiscoBgpVrf(BaseConfig):
         for af in afamilies:
             if (self.router):
                 self.router.toConfig()
-                self.router.enterWithResponce(f"router bgp {self.upref.name}", '(config-router)#')
+                self.router.enterWaitResponce(f"router bgp {self.upref.name}", '(config-router)#')
                 af.__apply__(self)
                 self.router.toConfig()
             self.af_list.append(af)
@@ -343,7 +343,7 @@ class CiscoBgpVrf(BaseConfig):
         for neighbor in neighbors:
             if (self.router):
                 self.router.toConfig()
-                self.router.enterWithResponce(f"router bgp {self.upref.name}", '(config-router)#')
+                self.router.enterWaitResponce(f"router bgp {self.upref.name}", '(config-router)#')
                 neighbor.__apply__(self)
                 self.router.toConfig()
 
@@ -354,7 +354,7 @@ class CiscoBgpVrf(BaseConfig):
     def remove_neighbor (self, *neighbors):
         if (self.router):
                 self.router.toConfig()
-                self.router.enterWithResponce(f"router bgp {self.upref.name}", '(config-router)#')
+                self.router.enterWaitResponce(f"router bgp {self.upref.name}", '(config-router)#')
         for neighbor in neighbors:
             if (self.router):
                 neighbor.__detach__(self)
@@ -377,7 +377,7 @@ class CiscoBgp(BaseConfig):
 
         if (self.router):
             self.router.toConfig()
-            self.router.enterWithResponce(f"router bgp {self.name}", '(config-router)#')
+            self.router.enterWaitResponce(f"router bgp {self.name}", '(config-router)#')
             for vrf in vrfs:
                 vrf.__apply__(self)
             self.router.toConfig()
@@ -389,7 +389,7 @@ class CiscoBgp(BaseConfig):
         self.router = router
 
         self.router.toConfig()
-        self.router.enterWithResponce(f"router bgp {self.name}", '(config-router)#')
+        self.router.enterWaitResponce(f"router bgp {self.name}", '(config-router)#')
 
         for vrf in self.vrf_list:
             vrf.__apply__(self)
@@ -402,11 +402,11 @@ class CiscoBgp(BaseConfig):
         if router:
             self.router = router
         self.router.toConfig()
-        self.router.enterWithResponce(f"router bgp {self.name}", '(config-router)#')
+        self.router.enterWaitResponce(f"router bgp {self.name}", '(config-router)#')
         for vrf in self.vrf_list:
             vrf.__detach__()
 
-        self.router.enterWithResponce(f"no router bgp {self.name}", '(config)#')
+        self.router.enterWaitResponce(f"no router bgp {self.name}", '(config)#')
 
         self.router.toConfig()
         self.router = None
@@ -417,7 +417,7 @@ def cisco_get_all_bgp (router):
     bgp_list = []
     router.toExec()
     try:
-        router.enterWithResponce('show ip bgp summary')
+        router.enterWaitResponce('show ip bgp summary')
     except ExceptionDevice:
         # bgp is not active
         return bgp_list
