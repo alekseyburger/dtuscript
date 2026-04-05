@@ -30,7 +30,7 @@ CONFIG_MODE = "config"
 CONFIG_DEEP_MODE = "config-deep"
 MODES = [USER_MODE, EXEC_MODE, CONFIG_MODE, CONFIG_DEEP_MODE]
 
-def paraseResponce(string):
+def paraseResponce(string) -> (str, str) :
     """
         It gets router responce as parameter 'string', extracts last char that
         indicates the mode
@@ -55,6 +55,7 @@ def paraseResponce(string):
         '>': USER_MODE,
         '#': EXEC_MODE,
     }.get(lastChar, "unknown")
+
     if mode == EXEC_MODE:
         check_config = re.findall(r'\S*(\(config)(.*\))', found[-2])
         if len(check_config) != 0: # '(config' and '...)' found
@@ -62,11 +63,11 @@ def paraseResponce(string):
                 mode = CONFIG_MODE
             else:
                 mode = CONFIG_DEEP_MODE
-        if len(found) > 1:
-            # name is before '(config' or at the end of string if '(config' is not found
-            name = found[-2].split('(')[0] if '(' in found[-2] else found[-2]
-        else:
-            name = '<noname>'
+    if len(found) > 1:
+        # name is before '(config' or at the end of string if '(config' is not found
+        name = found[-2].split('(')[0] if '(' in found[-2] else found[-2]
+    else:
+        name = '<noname>'
     return (mode, name.strip())
 
 class RouterCisco:
@@ -99,7 +100,12 @@ class RouterCisco:
     def end(self):
             self.tn.close()
 
-    def waitPrompt(self):
+    def waitPrompt(self) -> bool:
+        ''' 
+        Wait for prompt and define mode and name of router. Return True if prompt is found, False if not
+        self.mode is set to one of MODES or NONE_MODE if prompt is not found
+        self.name is set to router name if prompt is found or <unknown> if not
+        '''
 
         repeat = self.repeat
 
