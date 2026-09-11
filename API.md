@@ -25,6 +25,8 @@ Methods:
 - `toUser()`: Attempts to move CLI back to user mode (`>`), using repeated `exit` when needed.
 - `toExec()`: Ensures exec mode (`#`), including enable-password flow if currently in user mode.
 - `toConfig()`: Ensures global config mode (`(config)#`) from any supported mode.
+- `ping(address, vrf=None, source=None, counter=None) -> int`: Pings an IPv4 address and returns the success rate as a percentage, 0 to 100. Parameters: `address` (destination IPv4, required), `vrf` (VRF name or `CiscoVrf`), `source` (source interface/address, or `CiscoInterface`), `counter` (echo count; becomes `repeat` on IOS, device default 5). Zero is falsy, so `if not router.ping(addr):` reads as "no connectivity"; a first packet lost to ARP shows as 80 with the default count, which is normal rather than a failure. Raw output stays in `resp`; an unparsable reply returns 0.
+- `trace(address, vrf=None, source=None) -> str`: Traceroutes to an IPv4 address and returns the raw device reply, also left in `resp`. Parameters as for `ping()`. Hops are not parsed. Can block for a while, since unreachable hops time out one probe at a time.
 
 - `writeWithResponse(command, expect=None)`: Sends one command and waits for expected text. 
     Parameters: 

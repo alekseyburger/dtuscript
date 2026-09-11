@@ -246,5 +246,90 @@ class RouterCisco:
                 self.toExec()
                 self.enterWaitResponce(command, '#')
 
+    def __probe_command__(self, verb, address, vrf=None, source=None, **extra):
+        """Build a 'ping'/'traceroute' command line.
+
+        IOS wants the pieces in a fixed order:
+            <verb> [vrf <name>] <address> [source <x>] [<extra> <value>...]
+        The vrf keyword comes before the destination, everything else after.
+
+        Args:
+            verb (str): 'ping' or 'traceroute'.
+            address (str): destination IPv4 address.
+            vrf (str|CiscoVrf, optional): VRF to send from. An object with a
+                .name is accepted as well as a plain name.
+            source (str|CiscoInterface, optional): source interface or address.
+            **extra: further 'keyword value' pairs appended in order.
+        """
+        if not address:
+            raise Exception("RouterCisco: destination address is required")
+
+        # accept config objects as well as plain strings
+        vrf_name = getattr(vrf, 'name', vrf)
+        source_name = getattr(source, 'name', source)
+
+        command = verb
+        if vrf_name:
+            command += f" vrf {vrf_name}"
+        command += f" {address}"
+        if source_name:
+            command += f" source {source_name}"
+        for keyword, value in extra.items():
+            if value is not None:
+                command += f" {keyword} {value}"
+        return command
+
+    def ping(self, address, vrf=None, source=None, counter=None):
+        """Ping an IPv4 address and return the success rate as a percentage.
+
+        Args:
+            address (str): destination IPv4 address.
+            vrf (str|CiscoVrf, optional): VRF to send from.
+            source (str|CiscoInterface, optional): source interface or address.
+            counter (int, optional): number of echos to send ('repeat' on IOS).
+                The device default is 5 when omitted.
+
+        Returns:
+            int: success rate, 0 to 100. Zero is falsy, so
+                'if not router.ping(addr):' reads as "no connectivity", while
+                the number is there when an exact rate matters. A first packet
+                lost to ARP shows as 80 with the default repeat of 5, which is
+                normal on a quiet link rather than a failure.
+
+            The raw device output stays in self.resp. An unparsable reply
+            returns 0 and is logged.
+        """
+        command = self.__probe_command__('ping', address, vrf, source,
+                                         repeat=counter)
+        self.enterExecCommand(command)
+
+        match = re.findall(r'Success rate is (\d+) percent', self.resp)
+        if not match:
+            error(f"ping {address}: no success rate in reply")
+            return 0
+        rate = int(match[0])
+        info(f"ping {address}: {rate} percent")
+        return rate
+
+    def trace(self, address, vrf=None, source=None):
+        """Traceroute to an IPv4 address and return the raw device output.
+
+        Args:
+            address (str): destination IPv4 address.
+            vrf (str|CiscoVrf, optional): VRF to send from.
+            source (str|CiscoInterface, optional): source interface or address.
+
+        Returns:
+            str: the device reply, also left in self.resp. Hops are not parsed -
+                the output shape varies too much between unreachable, timed out
+                and administratively blocked paths to be worth guessing at.
+
+        Note this can block for a while: unreachable hops time out one probe at
+        a time, and read_until() has no timeout.
+        """
+        command = self.__probe_command__('traceroute', address, vrf, source)
+        self.enterExecCommand(command)
+        return self.resp
+
 
 
