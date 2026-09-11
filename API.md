@@ -110,6 +110,61 @@ CiscoOspf
     └─ CiscoOspfInterface
 ```
 
+### `CiscoISISAFamily`
+
+- `CiscoISISAFamily(af_type, *features)`: Creates an IS-IS address family object. Parameters: `af_type` (`ISIS_AFAMILY_IPV4_UNICAST` or `ISIS_AFAMILY_IPV6_UNICAST`), `*features` (raw CLI lines emitted inside the family block, for example `multi-topology`). IOS-XE has no `address-family ipv4` block under `router isis`, so the IPv4 family emits nothing in router context and serves only as the marker that puts `ip router isis` on the interfaces.
+- `add_feature(*features)`: Appends feature lines to the family. Parameters: `*features` (CLI strings).
+
+### `CiscoISISInterface`
+
+- `CiscoISISInterface(interface, **kwargs)`: Creates an IS-IS interface object. Parameters: `interface` (`CiscoInterface` instance or interface name), `**kwargs` — `network_type` (default `point-to-point`), `passive` (bool), `metric` (int), `circuit_type` (overrides the value derived from the owning level).
+
+### `CiscoISISLevel`
+
+- `CiscoISISLevel(level, **kwargs)`: Creates an IS-IS level object. Parameters: `level` (`ISIS_LEVEL_1` or `ISIS_LEVEL_2`), `**kwargs` — `metric_style`. Level-scoped commands are emitted with the ` level-N` suffix.
+- `add_interface(*isis_interface)`: Adds interfaces that run at this level. Parameters: `*isis_interface` (`CiscoISISInterface`). Raises if an interface already belongs to another level. The level number supplies each interface's `circuit-type`.
+- `remove_interface(*isis_interface)`: Removes interfaces. When the process is attached, pushes `no ip router isis <tag>` on each interface before dropping it from the list; when detached, edits the list only. Parameters: `*isis_interface` (`CiscoISISInterface`).
+
+### `CiscoISIS`
+
+- `CiscoISIS(name, **kwargs)`: Creates an IS-IS process object. Parameters: `name` (process tag, not coerced to int — string tags such as `CORE` are valid), `**kwargs` — `net` (optional here, validated when given; required by `create()`), `is_type` (overrides the value derived from the levels added).
+- `is_exist(router=None) -> bool`: Returns `True` when `router isis <tag>` is present in the running configuration, detected with `show run | inc ^router isis`. Parameters: `router` (optional when already attached). Inherited from `CiscoFeatureConfig`.
+- `attach(router) -> bool`: Binds the object to an existing process without changing it and reads `net` and `is_type` back off the device with `show run | sec router isis`. Returns `False` and stays detached when the process is absent. Raises when the device contradicts an attribute the caller set explicitly, leaving the object detached. Parameters: `router` (`RouterCisco` instance). Inherited from `CiscoFeatureConfig`.
+- `modify(**kwargs)`: Attached — pushes each attribute immediately; detached — stages it for `create()`. Accepts `net` and `is_type`. Inherited.
+- `add_afamily(*afamilies)`: Adds address families. Applies immediately when attached. Parameters: `*afamilies` (`CiscoISISAFamily`).
+- `add_level(*levels)`: Adds levels. Parameters: `*levels` (`CiscoISISLevel`).
+- `create(router)`: Applies the process, its levels, address families and interfaces. Router context first, then a second pass in interface context. Raises before emitting any CLI when no `net` is set. Parameters: `router` (`RouterCisco` instance).
+- `delete(router=None)`: Strips the `ip router isis` binding from every interface, then removes the process. Parameters: `router` (optional `RouterCisco` override).
+
+`is-type` is derived from the levels added — level 1 only gives `level-1`, level 2 only gives `level-2-only`, both give `level-1-2` — unless `is_type` is passed explicitly.
+
+Hierarchy:
+
+```text
+CiscoISIS
+├─ CiscoISISAFamily
+└─ CiscoISISLevel
+    └─ CiscoISISInterface
+```
+
+Example:
+
+```python
+from cisco_isis import CiscoISIS, CiscoISISLevel, CiscoISISInterface, CiscoISISAFamily
+from dtu_definition import ISIS_AFAMILY_IPV4_UNICAST, ISIS_LEVEL_2
+
+isis = CiscoISIS(1, net='49.0001.0000.0000.0002.00')
+isis.add_afamily(CiscoISISAFamily(ISIS_AFAMILY_IPV4_UNICAST))
+
+level2 = CiscoISISLevel(ISIS_LEVEL_2, metric_style='wide')
+level2.add_interface(CiscoISISInterface(csr1_to_csr2),
+                     CiscoISISInterface(csr1_loopback0, passive=True))
+isis.add_level(level2)
+
+if not isis.attach(router):
+    isis.create(router)
+```
+
 ### `CiscoVrfAFamily`
 
 - `CiscoVrfAFamily(af_type, **kwargs)`: Creates VRF address-family object. Parameters: `af_type` (for example IPv4 unicast constant), `**kwargs` (reserved).
@@ -221,6 +276,7 @@ Purpose: SSH CLI session handler for Linux hosts. It establishes interactive SSH
 - `cisco_get_all_interfaces(router) -> list[str]`: Returns existing interface names from `show ip interface brief` in lowercase. Parameters: `router` (`RouterCisco` instance).
 - `cisco_get_all_vrf(router) -> list[str]`: Returns VRF names parsed from `show vrf`. Parameters: `router` (`RouterCisco` instance).
 - `cisco_get_all_bgp(router) -> list[str]`: Returns detected local BGP AS number(s) parsed from `show ip bgp summary`; returns an empty list if BGP is not active. Parameters: `router` (`RouterCisco` instance).
+- `cisco_get_all_isis(router) -> list[str]`: Returns configured IS-IS process tags, lowercased, parsed from `show run | inc ^router isis`. An untagged `router isis` is reported as an empty string. Parameters: `router` (`RouterCisco` instance).
 
 ### Configuration Examples (Linux)
 

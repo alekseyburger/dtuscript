@@ -96,6 +96,15 @@ class FeatureConfig(BaseConfig):
         '''Commit policy. Cisco has none; Exaware overrides this.'''
         pass
 
+    def __read_features__ (self):
+        '''
+        Populate attributes from the device, called by attach() once the object
+        is bound. Default is a no-op; a feature class overrides it to parse its
+        own configuration section, normally via __merge_features__ below.
+        Raising rejects the attach.
+        '''
+        pass
+
     # ---- concrete lifecycle ----------------------------------------------
 
     def __set_feature__ (self, feature, value):
@@ -125,15 +134,55 @@ class FeatureConfig(BaseConfig):
                             "router is not defined")
         return self.__is_exist__(router)
 
+    def __merge_features__ (self, device_values):
+        '''
+        Reconcile attributes read back from the device with what the caller set.
+
+        An attribute the caller set explicitly and that the device contradicts
+        is an error; an attribute the caller never set is taken from the device.
+        Only real instance attributes count as "set" - a value a class derives
+        on the fly (CiscoISIS.is_type from the levels added, for example) is
+        never consulted here, or attaching to a process whose shape differs
+        from the staged one would be impossible.
+
+        All disagreements are collected and reported together, so a caller with
+        two wrong attributes sees both at once.
+        '''
+        mismatch = []
+        for feature, device_value in device_values.items():
+            if device_value is None:
+                continue                        # nothing on the device to contradict
+            if hasattr(self, feature):
+                own = getattr(self, feature)
+                if str(own) != str(device_value):
+                    mismatch.append(
+                        f"  {feature}: object '{own}' != device '{device_value}'")
+            else:
+                setattr(self, feature, device_value)
+
+        if mismatch:
+            raise Exception(f"{type(self).__name__}: attached object disagrees "
+                            "with device:\n" + "\n".join(mismatch))
+
     def attach (self, router):
         '''
         Bind this object to configuration that already exists on the device,
         without changing that configuration. Returns False and stays detached
         when the feature is not present.
+
+        Raises when __read_features__ finds the device contradicting an
+        attribute the caller set explicitly. The object stays detached in that
+        case, so a rejected attach never leaves it half bound.
         '''
         if not self.is_exist(router):
             return False
         self.router = router
+        try:
+            self.__read_features__()
+        except Exception:
+            self.router = None
+            raise
+        # logged last: __repr__ prints attributes read_features has just filled
         info(f"{self} attached")
         return True
 
