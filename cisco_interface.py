@@ -172,15 +172,36 @@ class CiscoInterface(BaseConfig):
             if hasattr(self, feature):
                 self.__apply_feature__(feature, getattr(self, feature))
 
+    def is_exist (self, router=None):
+        '''
+        Returns True if the interface is present in the running configuration.
+
+        Detection uses the exec command 'show run | inc ^interface'. The '^'
+        anchor keeps 'passive-interface ...' lines out of the match, and \\S+
+        preserves the '.' and '/' of subinterface names.
+
+        Parameters:
+            router - RouterCisco instance. May be omitted when the object is
+                     already attached, in which case the attached router is used.
+        '''
+        if self.router:
+            router = self.router
+        if not router:
+            raise Exception("CiscoInterface: can't get router config - router is not defined")
+
+        router.enterExecCommand('show run | inc ^interface')
+        int_list = [name.lower()
+                    for name in re.findall(r'^interface\s+(\S+)', router.resp, re.MULTILINE)]
+        return self.name in int_list
+
     def attach (self, router):
         '''
         If interface is exist, then attach the Object to router interface and returns True.
-        Otherwise retunts False.  After calling these methods, it is possible 
-        to change the interface configuration using the .modify method or delete/clear 
+        Otherwise retunts False.  After calling these methods, it is possible
+        to change the interface configuration using the .modify method or delete/clear
         the interface using the .delete method.
         '''
-        int_list = cisco_get_all_interfaces(router)
-        if self.name not in int_list:
+        if not self.is_exist(router):
             return False
         self.router = router
         info(f" {self} attached")
@@ -289,7 +310,9 @@ def cisco_get_all_interfaces (router):
         body = body[:table_end_pos.span()[0]]
 
     for line in body.split('\r\n'):
-        match = re.findall(r'(\w+)', line)
+        # take the whole first column: \S+ keeps '.' and '/' of subinterface
+        # names, which \w+ would have truncated at the first separator
+        match = re.findall(r'^(\S+)', line)
         if match and len(match):
             int_list.append(match[0].lower())
     return int_list

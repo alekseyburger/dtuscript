@@ -42,7 +42,8 @@ Exception: `ExceptionDevice` conveys error string as parameter
 Methods:
 
 - `CiscoInterface(name)`: Creates an interface config object. Parameters: `name` (interface name, for example `GigabitEthernet1` or `Loopback100`).
-- `attach(router) -> bool`: Binds object to an existing interface. Parameters: `router` (`RouterCisco` instance). Returns `True` if interface exists.
+- `is_exist(router=None) -> bool`: Returns `True` if the interface is present in the running configuration, detected with `show run | inc ^interface`. Subinterface names such as `gigabitethernet2.3125` are matched in full, and `passive-interface ...` lines are excluded by the `^` anchor. Parameters: `router` (`RouterCisco` instance; optional when the object is already attached, in which case the attached router is used).
+- `attach(router) -> bool`: Binds object to an existing interface, using `is_exist()` for the check. Parameters: `router` (`RouterCisco` instance). Returns `True` if interface exists.
 - `create(router) -> bool`: Creates or resets interface and applies staged attributes. Parameters: `router` (`RouterCisco` instance).
 - `modify(**kwargs)`: Updates interface attributes. Parameters: keyword fields like `vrf`, `ipv4_address_mask`, `ipv6_address_mask`, `description`, `mpls`, `vlanId`.
 - `delete(router=None)`: Removes subinterface/loopback or defaults physical interface. Parameters: `router` (optional `RouterCisco` override).

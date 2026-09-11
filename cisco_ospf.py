@@ -3,6 +3,7 @@
 
 import logging
 from base_config import BaseConfig
+from cisco_base import CiscoFeatureConfig
 from router_cisco import RouterCisco
 from cisco_interface import  CiscoInterface
 from dtu_definition import OSPF_INTF_NTYPE_P2P,OSPF_INTF_NTYPE_P2M, OSPF_INTF_NTYPE_BCAST, OSPF_INTF_NTYPE_NBCAST, OSPF_INTF_NTYPE_P2M_NBCAST
@@ -72,7 +73,7 @@ class CiscoOspfInterface(BaseConfig):
         self.upref = upref
         self.router = upref.router
 
-        self.router.toConfig
+        self.router.toConfig()
         self.router.enterWaitResponce(f"interface {self.name}", '(config-if)#')
         self.router.enterWaitResponce(f'ip ospf {self.upref.upref.name} area {self.upref.name}', '(config-if)#')
         # if hasattr(self, "mtu") and self.mtu:
@@ -85,7 +86,8 @@ class CiscoOspfInterface(BaseConfig):
         #     self.router.enterWaitResponce(f"no metric", '#')
         if not hasattr(self,'passive') or not self.passive:
             self.router.enterWaitResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
-        self.router.toConfig
+        # leave the interface submode so the caller resumes at '(config)#'
+        self.router.toConfig()
 
     def __detach__ (self):
         self.upref = None
@@ -146,7 +148,17 @@ class CiscoOspfArea(BaseConfig):
         for intf in ospf_interface:
             self.intf_list.append(intf)
 
-class CiscoOspf(BaseConfig):
+class CiscoOspf(CiscoFeatureConfig):
+    '''
+    OSPF routing process. Inherits attach / modify / is_exist from
+    CiscoFeatureConfig; keeps its own two-phase create(), which applies areas
+    in interface context before entering 'router ospf <id>'.
+    '''
+
+    # No configurable root attributes yet, so modify() has nothing to accept.
+    attr_list = ()
+    config_prompt = '(config-router)#'
+
     def __init__ (self, name, **kwargs):
         BaseConfig.__init__(self, None, int(name))
         self.area_list = []
@@ -158,6 +170,19 @@ class CiscoOspf(BaseConfig):
             ret = f"noname  "
         ret =  ret + f"Ospf {self.name}"
         return ret
+
+    def __headline__ (self):
+        # self.name is an int (see __init__), so build via f-string and never
+        # assume it is a str.
+        return f"router ospf {self.name}"
+
+    def __detect_filter__ (self):
+        return "router ospf"
+
+    def __apply_feature__ (self, feature, value):
+        # attr_list is empty: nothing is configurable on the process itself
+        # yet. Report rather than raise, matching CiscoInterface.
+        error(f" Unexpected cfg feature {feature}")
 
     def add_area (self, ospf_area):
         self.area_list.append(ospf_area)
