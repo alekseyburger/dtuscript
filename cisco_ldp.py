@@ -33,7 +33,7 @@ class CiscoLdpInterface(BaseConfig):
         elif isinstance(interface,str):
             name = interface
         else:
-            Exception('CiscoLdp: unexpected interface name')
+            raise Exception('CiscoLdp: unexpected interface name')
 
         BaseConfig.__init__(self, None, name)
 

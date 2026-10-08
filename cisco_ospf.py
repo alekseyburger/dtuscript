@@ -38,7 +38,7 @@ class CiscoOspfInterface(BaseConfig):
         elif isinstance(interface,str):
             name = interface
         else:
-            Exception("CiscoOspf: unexpected interface name")
+            raise Exception("CiscoOspf: unexpected interface name")
 
         BaseConfig.__init__(self, None, name)
 

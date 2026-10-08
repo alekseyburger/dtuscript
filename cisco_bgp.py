@@ -167,7 +167,7 @@ class CiscoBgpNeighbor(BaseConfig):
                 elif isinstance(local_address, str):
                     self.local_address = local_address
                 else:
-                    Exception("CiscoBgp: unexpected interface name")
+                    raise Exception("CiscoBgp: unexpected interface name")
 
         self.af_list = []
         self.vrf = None
@@ -212,10 +212,25 @@ class CiscoBgpNeighbor(BaseConfig):
 
         if not self.router:
             self.router = upref.router
+
+        # A vrf neighbor exists only inside its vrf address family (see
+        # __apply__), so it is removed there. The headline is read before
+        # af.__detach__() clears the family's vrf. A vrf neighbor without an
+        # address family was never applied, so there is nothing to remove.
+        af_headline = None
+        if self.vrf and self.af_list:
+            af_headline = self.af_list[0]._get_af_headline()
+        is_configured = not self.vrf or af_headline
+
         for af in self.af_list:
             af.__detach__()
 
-        self.router.enterWaitResponce(f"no neighbor {self.name}", '#')
+        if is_configured:
+            if af_headline:
+                self.router.enterWaitResponce(af_headline, '(config-router-af)#')
+            self.router.enterWaitResponce(f"no neighbor {self.name}", '#')
+            if af_headline:
+                self.router.enterWaitResponce('exit-address-family', '(config-router)#')
         self.upref = None
         self.router = None
 
@@ -343,7 +358,7 @@ class CiscoBgpVrf(BaseConfig):
             name = vrf.strip()
             self.upvrf = None
         else:
-            Exception("CiscoBgp: unexpected vrf name")
+            raise Exception("CiscoBgp: unexpected vrf name")
         BaseConfig.__init__(self, None, name)
 
         self.af_list = []
@@ -374,7 +389,7 @@ class CiscoBgpVrf(BaseConfig):
         for af in self.af_list:
             af.__detach__()
         for neighbor in self.neighbor_list:
-            neighbor.__detach__()
+            neighbor.__detach__(self)
 
         self.upref = None
         self.router = None           
