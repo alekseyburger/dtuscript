@@ -25,3 +25,7 @@ ISIS_LEVEL_2 = 2
 
 ISIS_INTF_NTYPE_P2P = "point-to-point"
 ISIS_INTF_NTYPE_BCAST = "broadcast"
+
+# Exaware 'l2-services evpn <name>' service types (ExaEvpnInstance)
+EVPN_SERVICE_VLAN_BASED = "vlan-based"
+EVPN_SERVICE_PORT_BASED = "port-based"
