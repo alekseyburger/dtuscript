@@ -95,6 +95,8 @@ class CiscoBgpNeighborAFamily(BaseConfig):
             for feature in self.feature_set:
                 self.router.enterWaitResponce(f'neighbor {upref.name} {feature}', '(config-router-af)#')
 
+        self.__apply_cfg__()
+
         self.router.enterWaitResponce('exit-address-family' , '(config-router)#')
 
     def __detach__ (self):
@@ -130,6 +132,19 @@ class CiscoBgpNeighborAFamily(BaseConfig):
         if self.vrf and not self.vrf.is_default:
             headline += f" vrf {self.vrf.name}"
         return headline
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __cfg_line__ (self, line):
+        # self.upref is the neighbor this family was last applied for
+        return f"neighbor {self.upref.name} {line}"
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+        self.router.enterWaitResponce(self._get_af_headline(), '(config-router-af)#')
 
 class CiscoBgpNeighbor(BaseConfig):
     '''
@@ -176,7 +191,8 @@ class CiscoBgpNeighbor(BaseConfig):
     def __write_neighbor_params__ (self):
         self.router.enterWaitResponce(f"neighbor {self.name} remote-as {self.as_number}", '#')
         if hasattr(self, "local_address") and self.local_address:
-            self.router.enterWaitResponce(f"neighbor {self.name} update-source {self.local_address}", '#')        
+            self.router.enterWaitResponce(f"neighbor {self.name} update-source {self.local_address}", '#')
+        self.__apply_cfg__()
 
     def __apply__ (self, upref):
         self.upref = upref
@@ -212,6 +228,26 @@ class CiscoBgpNeighbor(BaseConfig):
         self.vrf = vrf
         for af in self.af_list:
             af._set_vrf(vrf)
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __cfg_line__ (self, line):
+        # Cisco neighbor lines live in the router context, keyed by address
+        return f"neighbor {self.name} {line}"
+
+    def __enter_config__ (self):
+        '''
+        Default vrf: 'router bgp <as>'. A vrf neighbor is configured inside
+        the vrf address family, as __apply__ does; the first one is used.
+        '''
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+        if self.vrf:
+            if not self.af_list:
+                raise Exception(f"{self}: vrf {self.vrf.name} neighbor has no address family")
+            self.router.enterWaitResponce(self.af_list[0]._get_af_headline(), '(config-router-af)#')
 
 class CiscoBgpAFamily(BaseConfig):
     '''
@@ -262,6 +298,8 @@ class CiscoBgpAFamily(BaseConfig):
             self.router.enterWaitResponce(feature, "(config-router-af)#")
             # print(feature)
 
+        self.__apply_cfg__()
+
         self.router.enterWaitResponce("exit-address-family", "(config-router)#")
 
     def __detach__ (self):
@@ -285,6 +323,15 @@ class CiscoBgpAFamily(BaseConfig):
         if not self.router:
             return None
         return self.upref.upref.name
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router bgp {self.get_router_name()}", '(config-router)#')
+        self.router.enterWaitResponce(_cisco_bgp_get_af_command(self.name), '(config-router-af)#')
 
 class CiscoBgpVrf(BaseConfig):
     def __init__ (self, vrf, **kwargs):
@@ -315,6 +362,8 @@ class CiscoBgpVrf(BaseConfig):
         self.upref = upref
         self.router = upref.router
 
+        if self.is_default:
+            self.__apply_cfg__()
         for neighbor in self.neighbor_list:
             neighbor.__apply__(self)  
         for af in self.af_list:
@@ -364,6 +413,21 @@ class CiscoBgpVrf(BaseConfig):
                 if n.name == neighbor.name:
                     self.neighbor_list.remove(n)
 
+    # ---- config() / unconfig() support -----------------------------------
+
+    @property
+    def is_cfg_supported (self):
+        '''
+        Only the default vrf has a context of its own ('router bgp <as>').
+        IOS keeps a non-default vrf's settings in its address families
+        ('address-family ipv4 vrf <name>') - use CiscoBgpAFamily there.
+        '''
+        return self.is_default
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router bgp {self.upref.name}", '(config-router)#')
+
 class CiscoBgp(BaseConfig):
     def __init__ (self, name, **kwargs):
         BaseConfig.__init__(self, None, str(name))
@@ -390,6 +454,7 @@ class CiscoBgp(BaseConfig):
 
         self.router.toConfig()
         self.router.enterWaitResponce(f"router bgp {self.name}", '(config-router)#')
+        self.__apply_cfg__()
 
         for vrf in self.vrf_list:
             vrf.__apply__(self)
@@ -412,6 +477,14 @@ class CiscoBgp(BaseConfig):
         self.router = None
 
         info(f"router bgp {self.name} deleted")
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router bgp {self.name}", '(config-router)#')
 
 def cisco_get_all_bgp (router):
     bgp_list = []

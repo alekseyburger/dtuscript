@@ -86,12 +86,21 @@ class CiscoOspfInterface(BaseConfig):
         #     self.router.enterWaitResponce(f"no metric", '#')
         if not hasattr(self,'passive') or not self.passive:
             self.router.enterWaitResponce(f"ip ospf network  {self.network_type}", '(config-if)#')
+        self.__apply_cfg__()
         # leave the interface submode so the caller resumes at '(config)#'
         self.router.toConfig()
 
     def __detach__ (self):
         self.upref = None
         self.router = None
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"interface {self.name}", '(config-if)#')
 
 class CiscoOspfArea(BaseConfig):
     def __init__ (self, name, **kwargs):
@@ -132,6 +141,7 @@ class CiscoOspfArea(BaseConfig):
 
     def __apply__phase2__ (self, upref):
 
+        self.__apply_cfg__()
         for ospf_intf in self.intf_list:
             if hasattr(ospf_intf,'passive') and ospf_intf.passive:
                 self.router.enterWaitResponce(f'passive-interface {ospf_intf.name}', '(config-router)#')
@@ -148,6 +158,18 @@ class CiscoOspfArea(BaseConfig):
         for intf in ospf_interface:
             self.intf_list.append(intf)
 
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __cfg_line__ (self, line):
+        # IOS has no area submode: area lines live in the router context
+        return f"area {self.name} {line}"
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"router ospf {self.upref.name}", '(config-router)#')
+
 class CiscoOspf(CiscoFeatureConfig):
     '''
     OSPF routing process. Inherits attach / modify / is_exist from
@@ -158,6 +180,7 @@ class CiscoOspf(CiscoFeatureConfig):
     # No configurable root attributes yet, so modify() has nothing to accept.
     attr_list = ()
     config_prompt = '(config-router)#'
+    is_cfg_supported = True
 
     def __init__ (self, name, **kwargs):
         BaseConfig.__init__(self, None, int(name))
@@ -197,6 +220,7 @@ class CiscoOspf(CiscoFeatureConfig):
     
         self.router.toConfig()
         self.router.enterWaitResponce(f"router ospf {self.name}", '(config-router)#')
+        self.__apply_cfg__()
         for area in self.area_list:
             area.__apply__phase2__(self)
         self.router.toConfig()

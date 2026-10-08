@@ -50,10 +50,22 @@ class CiscoLdpInterface(BaseConfig):
     def __apply__ (self, upref):
         self.upref = upref
         self.router = upref.router
+        if self.cfg_list:
+            self.__enter_config__()
+            self.__apply_cfg__()
+            self.router.toConfig()
 
     def __detach__ (self):
         self.upref = None
         self.router = None
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f'interface {self.name}', '(config-if)#')
 
 class CiscoLdp(BaseConfig):
     def __init__ (self, **kwargs):
@@ -75,6 +87,9 @@ class CiscoLdp(BaseConfig):
         self.router.enterWaitResponce('mpls label protocol ldp', '(config)#')
         if hasattr(self, 'router_id') and self.router_id:
             self.router.enterWaitResponce(f'mpls ldp router-id {self.router_id}', '(config)#')
+        self.__apply_cfg__()
+        for intf in self.intf_list:
+            intf.__apply__(self)
         self.router.toConfig()
 
         info(f'mpls ldp  {self.name} is created')
@@ -96,4 +111,14 @@ class CiscoLdp(BaseConfig):
 
     def add_interface (self, *ldp_interface):
         for intf in ldp_interface:
+            if self.router:
+                intf.__apply__(self)
             self.intf_list.append(intf)
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        # mpls ldp lines are global: there is no ldp submode on IOS-XE
+        self.router.toConfig()

@@ -58,6 +58,8 @@ class CiscoVrfAFamily(BaseConfig):
         for target in self.export_list:
             self.router.enterWaitResponce(f'route-target export {target}' , '(config-vrf)#')
 
+        self.__apply_cfg__()
+
     def __detach__ (self):
         self.router.enterWaitResponce(f'no ip vrf {self.upref.name}', '(config)#')
 
@@ -81,6 +83,14 @@ class CiscoVrfAFamily(BaseConfig):
                 self.router.enterWaitResponce(f'route-target export {target}' , '(config-vrf)#')
                 self.router.toConfig()
             self.export_list.append(target)
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f'ip vrf {self.upref.name}', '(config-vrf)#')
 
 class CiscoVrf(BaseConfig):
     def __init__ (self, name, rd, **kwargs):
@@ -116,6 +126,12 @@ class CiscoVrf(BaseConfig):
         for af in self.af_list:
             af.__apply__(self)
 
+        # 'ip vrf <name>' is opened by the address family, which must come
+        # first because it carries the mandatory rd
+        if self.cfg_list:
+            self.__enter_config__()
+            self.__apply_cfg__()
+
         info(f"{self} created")
         return True
 
@@ -143,7 +159,15 @@ class CiscoVrf(BaseConfig):
                 af.__apply__(self)
                 self.router.toConfig()
             self.af_list.append(af)
-    
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f'ip vrf {self.name}', '(config-vrf)#')
+
 
 def cisco_get_all_vrf (router):
     router.enterExecCommand('show vrf')

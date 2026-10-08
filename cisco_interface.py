@@ -225,6 +225,7 @@ class CiscoInterface(BaseConfig):
         # recreate interface and applay configured features
         self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
         self.__apply_features__()
+        self.__apply_cfg__()
         info(f" {self} created")
         return True
 
@@ -290,6 +291,14 @@ class CiscoInterface(BaseConfig):
         self.router.enterWaitResponce(f"shutdown",PROMPT_CFG)      
 
         info(f" {self} down")
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"interface {self.name}",PROMPT_CFG)
 
 
 def cisco_get_all_interfaces (router):

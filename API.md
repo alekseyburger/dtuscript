@@ -227,6 +227,22 @@ CiscoBgp
         └─ CiscoBgpNeighborAFamily
 ```
 
+### `config()` / `unconfig()` (shared, from `BaseConfig`)
+
+Supported by every configuration class. `CiscoBgpVrf` supports it for the
+default vrf only; for a non-default vrf it raises `NotImplementedError`.
+
+- `config(*lines)`: Adds configuration lines, sent one by one in the given order inside the object's context. Detached: staged in `cfg_list` and sent by `create()`. Attached: staged and sent immediately. Returns `False` on an invalid line.
+- `unconfig(*lines)`: Drops the lines from `cfg_list`. When attached, it also sends `no <line>`.
+- Context: the object's own block, e.g. `interface <name>`, `router bgp <as>` or an address family. Some classes add a prefix or suffix to each line: `CiscoBgpNeighbor` / `CiscoBgpNeighborAFamily` send `neighbor <address> <line>`, `CiscoOspfArea` sends `area <id> <line>`, and `CiscoISISLevel` sends `<line> level-<N>`. The full table is in `dtu-doc/config_unconfig_design.md`.
+- In `create()`, staged lines follow the object's own mandatory lines and precede its children.
+
+```python
+bgp.config("bgp log-neighbor-changes")
+neighbor.config("next-hop-self", "send-community")
+neighbor.unconfig("send-community")
+```
+
 ### Configuration Examples (Cisco)
 
 ```python

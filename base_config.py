@@ -12,6 +12,9 @@ def error(format):
 def info(format):
     logger.info(f'\n\x1b[1;92mFeatureConfig: {format}\x1b[0m')
 
+def warn(format):
+    logger.warning(f'\n\x1b[1;94mFeatureConfig: {format}\x1b[0m')
+
 
 def feature_str_normalize (str):
     str = ' '.join(str.split())
@@ -38,9 +41,123 @@ def _feature_set_modify (feature_set, str):
     return feature_set
 
 class BaseConfig:
+    # True on classes that implement __enter_config__ and send cfg_list from
+    # their create() / __apply__(). config() and unconfig() refuse on every
+    # other class, so staged lines can never be silently dropped.
+    is_cfg_supported = False
+
+    # Prompt awaited after a config() line. '#' matches every Cisco
+    # configuration sub-prompt, so a line may open or close a submode;
+    # Exaware's enterWaitResponce ignores the argument.
+    cfg_prompt = '#'
+
     def __init__ (self, router, name):
         self.router = router
         self.name = ' '.join(name.strip().split()) if isinstance(name, str) else name
+        # Lines added by config(), in the order they are sent to the device.
+        self.cfg_list = []
+
+    # ---- configuration lines: config() / unconfig() -----------------------
+
+    def __enter_config__ (self):
+        '''Put the session in this object's configuration context, from any
+        mode. Supplied by every class that sets is_cfg_supported.'''
+        raise NotImplementedError(f"{type(self).__name__} must define __enter_config__")
+
+    def __leave_config__ (self):
+        '''Return to global config, so the caller resumes at '(config)#'.'''
+        self.router.toConfig()
+
+    def __commit__ (self):
+        '''
+        Commit when the router is transactional (Exaware) and the caller is
+        not batching changes behind is_skip_partial_commit. RouterCisco has no
+        commit(), so this is a no-op on Cisco.
+        '''
+        commit = getattr(self.router, 'commit', None)
+        if commit and not getattr(self.router, 'is_skip_partial_commit', False):
+            commit()
+
+    def __cfg_line__ (self, line):
+        '''
+        Map a config() line to the CLI sent in this object's context. The
+        default sends it as is; a class whose lines carry a prefix overrides
+        it (Cisco BGP neighbor: "neighbor <address> <line>").
+        '''
+        return line
+
+    def __cfg_normalize__ (self, lines):
+        '''
+        Validate config() / unconfig() arguments. Returns the lines with
+        whitespace collapsed, or None after logging an error. Case is kept:
+        configuration lines may be case sensitive (descriptions, passwords).
+        '''
+        if not self.is_cfg_supported:
+            raise NotImplementedError(f"{type(self).__name__} does not support config()")
+        if not lines:
+            error(f"{self}: no configuration line given")
+            return None
+        result = []
+        for line in lines:
+            if not isinstance(line, str) or not line.strip():
+                error(f"{self}: invalid configuration line {line!r}")
+                return None
+            result.append(' '.join(line.split()))
+        return result
+
+    def __cfg_push__ (self, cli_lines):
+        '''Send already mapped CLI lines to the attached router, one by one,
+        in the object's context, then commit.'''
+        self.__enter_config__()
+        for cli in cli_lines:
+            self.router.enterWaitResponce(cli, self.cfg_prompt)
+        self.__commit__()
+        self.__leave_config__()
+
+    def __apply_cfg__ (self):
+        '''
+        Send every staged line, in order. Called from create() / __apply__()
+        with the router already in this object's context; never commits - the
+        surrounding create() owns the commit.
+        '''
+        for line in self.cfg_list:
+            self.router.enterWaitResponce(self.__cfg_line__(line), self.cfg_prompt)
+
+    def config (self, *lines):
+        '''
+        Add configuration lines, applied one by one in the given order inside
+        this object's context, e.g. bgp.config("bgp log-neighbor-changes").
+
+        Detached: the lines are staged in cfg_list and sent by create().
+        Attached: the lines are staged and sent immediately.
+        '''
+        lines = self.__cfg_normalize__(lines)
+        if lines is None:
+            return False
+        self.cfg_list.extend(lines)
+        if self.router:
+            self.__cfg_push__([self.__cfg_line__(line) for line in lines])
+        info(f"{self} config {lines}")
+        return True
+
+    def unconfig (self, *lines):
+        '''
+        Remove configuration lines. Each line is dropped from cfg_list when it
+        is staged there; when attached, "no <line>" is sent as well, so a line
+        configured on the device by other means can be removed too.
+        '''
+        lines = self.__cfg_normalize__(lines)
+        if lines is None:
+            return False
+        for line in lines:
+            if line in self.cfg_list:
+                self.cfg_list.remove(line)
+            elif not self.router:
+                warn(f"{self}: '{line}' is not configured")
+        if self.router:
+            self.__cfg_push__([f"no {self.__cfg_line__(line)}" for line in lines])
+        info(f"{self} unconfig {lines}")
+        return True
 
 
 class FeatureConfig(BaseConfig):

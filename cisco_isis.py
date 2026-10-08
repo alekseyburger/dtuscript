@@ -146,17 +146,31 @@ class CiscoISISAFamily(BaseConfig):
 
         headline = _cisco_isis_get_af_command(self.name)
         if not headline:
-            # IPv4 is native to the process - nothing to open, nothing to emit
+            # IPv4 is native to the process - nothing to open; config() lines
+            # go straight into the router context
+            self.__apply_cfg__()
             return
 
         self.router.enterWaitResponce(headline, PROMPT_ROUTER_AF)
         for feature in self.feature_list:
             self.router.enterWaitResponce(feature, PROMPT_ROUTER_AF)
+        self.__apply_cfg__()
         self.router.enterWaitResponce('exit-address-family', PROMPT_ROUTER)
 
     def __detach__ (self):
         self.upref = None
         self.router = None
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(self.upref.__headline__(), PROMPT_ROUTER)
+        headline = _cisco_isis_get_af_command(self.name)
+        if headline:
+            self.router.enterWaitResponce(headline, PROMPT_ROUTER_AF)
 
 
 class CiscoISISInterface(BaseConfig):
@@ -240,6 +254,8 @@ class CiscoISISInterface(BaseConfig):
             self.router.enterWaitResponce(f"isis metric {self.metric} level-{level}",
                                           PROMPT_CFG_IF)
 
+        self.__apply_cfg__()
+
         # leave the interface submode so the caller resumes at '(config)#'
         self.router.toConfig()
 
@@ -261,6 +277,14 @@ class CiscoISISInterface(BaseConfig):
     def __detach__ (self):
         self.upref = None
         self.router = None
+
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(f"interface {self.name}", PROMPT_CFG_IF)
 
 
 class CiscoISISLevel(BaseConfig):
@@ -318,6 +342,7 @@ class CiscoISISLevel(BaseConfig):
             self.router.enterWaitResponce(
                 f"metric-style {self.metric_style} level-{self.level}",
                 PROMPT_ROUTER)
+        self.__apply_cfg__()
 
     def __apply_passive__ (self, upref):
         '''passive-interface lines. Router context, so they cannot go in
@@ -347,6 +372,19 @@ class CiscoISISLevel(BaseConfig):
         self.upref = None
         self.router = None
 
+    # ---- config() / unconfig() support -----------------------------------
+
+    is_cfg_supported = True
+
+    def __cfg_line__ (self, line):
+        # level-scoped router commands carry the ' level-N' suffix, so the
+        # caller writes the same bare line as on ExaISISLevel
+        return f"{line} level-{self.level}"
+
+    def __enter_config__ (self):
+        self.router.toConfig()
+        self.router.enterWaitResponce(self.upref.__headline__(), PROMPT_ROUTER)
+
 
 class CiscoISIS(CiscoFeatureConfig):
     '''
@@ -366,6 +404,7 @@ class CiscoISIS(CiscoFeatureConfig):
     '''
 
     attr_list = ('net', 'is_type')
+    is_cfg_supported = True
     config_prompt = PROMPT_ROUTER
 
     def __init__ (self, name, **kwargs):
@@ -464,6 +503,8 @@ class CiscoISIS(CiscoFeatureConfig):
         is_type = self.__is_type__()
         if is_type:
             self.router.enterWaitResponce(f"is-type {is_type}", PROMPT_ROUTER)
+
+        self.__apply_cfg__()
 
         for level in self.level_list:
             level.__apply__(self)
