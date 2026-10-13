@@ -34,6 +34,8 @@ def _cisco_bgp_get_af_command (name):
         return 'address-family ipv6 unicast'
     elif  name == BGP_AFAMILY_IPV4_VPN:
         return 'address-family vpnv4'
+    elif  name == BGP_AFAMILY_L2_EVPN:
+        return 'address-family l2vpn evpn'
     else:
         raise Exception("cisco bgp af is not implemented ")
 
